@@ -1,0 +1,141 @@
+---
+
+- name: "5.3.3.4.1 | PATCH | Ensure pam_unix does not include nullok"
+  when:
+    - amzn2027cis_rule_5_3_3_4_1
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - NIST800-53R5_CM-6
+    - rule_5.3.3.4.1
+    - pam
+  block:
+    - name: "5.3.3.4.1 | AUDIT | Ensure pam_unix does not include nullok | Get current config authselect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.command: /usr/bin/authselect current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_authselect_current_nullok
+
+    - name: "5.3.3.4.1 | PATCH | Ensure pam_unix does not include nullok | Enable feature on the active profile"
+      when:
+        - amzn2027cis_allow_authselect_updates
+        - discovered_authselect_current_nullok.rc == 0
+        - "'without-nullok' not in discovered_authselect_current_nullok.stdout"
+      ansible.builtin.command: /usr/bin/authselect enable-feature without-nullok
+      changed_when: true
+      notify: Authselect update
+
+    - name: "5.3.3.4.1 | PATCH | Ensure pam_unix does not include nullok | Remove nullok from pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*(?:auth|account|password|session)\s+\S+\s+pam_unix\.so\b.*?)\s+nullok\b(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+
+- name: "5.3.3.4.2 | PATCH | Ensure pam_unix does not include remember"
+  when:
+    - amzn2027cis_rule_5_3_3_4_2
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - pam
+    - NIST800-53R5_IA-5
+    - rule_5.3.3.4.2
+  block:
+    - name: "5.3.3.4.2 | PATCH | Ensure pam_unix does not include remember | Remove remember from pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*password\s+\S+\s+pam_unix\.so\b.*?)\s+remember\s*=\s*\S+(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+
+    - name: "5.3.3.4.2 | PATCH | Ensure pam_unix does not include remember | Remove remember from pam files AuthSelect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item }}-auth"
+        regexp: ^(\s*password\s+\S+\s+pam_unix\.so\b.*?)\s+remember\s*=\s*\S+(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+      notify: Authselect update
+
+- name: "5.3.3.4.3 | PATCH | Ensure pam_unix includes a strong password hashing algorithm"
+  when:
+    - amzn2027cis_rule_5_3_3_4_3
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - pam
+    - rule_5.3.3.4.3
+    - NIST800-53R5_IA-5
+  vars:
+    discovered_pam_unix_hash_edits:
+      - regexp: ^(\s*password\s+(?:requisite|required|sufficient)\s+pam_unix\.so\b.*?\s)(?:md5|bigcrypt|sha256|blowfish|gost_yescrypt|sha512|yescrypt)\b
+        replace: \1{{ amzn2027cis_passwd_hash_algo }}
+      - regexp: ^(\s*password\s+(?:requisite|required|sufficient)\s+pam_unix\.so\b)(?!.*\b(?:md5|bigcrypt|sha256|blowfish|gost_yescrypt|sha512|yescrypt)\b)(.*)$
+        replace: \1 {{ amzn2027cis_passwd_hash_algo }}\2
+  block:
+    - name: "5.3.3.4.3 | PATCH | Ensure pam_unix includes a strong password hashing algorithm | Set hash algorithm in pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item.0 }}-auth"
+        regexp: "{{ item.1.regexp }}"
+        replace: "{{ item.1.replace }}"
+      loop: "{{ ['password', 'system'] | product(discovered_pam_unix_hash_edits) | list }}"
+
+    - name: "5.3.3.4.3 | PATCH | Ensure pam_unix includes a strong password hashing algorithm | Set hash algorithm in pam files AuthSelect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item.0 }}-auth"
+        regexp: "{{ item.1.regexp }}"
+        replace: "{{ item.1.replace }}"
+      loop: "{{ ['password', 'system'] | product(discovered_pam_unix_hash_edits) | list }}"
+      notify: Authselect update
+
+- name: "5.3.3.4.4 | PATCH | Ensure pam_unix includes use_authtok"
+  when:
+    - amzn2027cis_rule_5_3_3_4_4
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - pam
+    - rule_5.3.3.4.4
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.3.4.4 | PATCH | Ensure pam_unix includes use_authtok | pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*password\s+(?:requisite|required|sufficient)\s+pam_unix\.so\b)(?!.*\buse_authtok\b)(.*)$
+        replace: \1\2 use_authtok
+      loop:
+        - password
+        - system
+
+    - name: "5.3.3.4.4 | PATCH | Ensure pam_unix includes use_authtok | pam files AuthSelect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item }}-auth"
+        regexp: ^(\s*password\s+(?:requisite|required|sufficient)\s+pam_unix\.so\b)(?!.*\buse_authtok\b)(.*)$
+        replace: \1\2 use_authtok
+      loop:
+        - password
+        - system
+      notify: Authselect update

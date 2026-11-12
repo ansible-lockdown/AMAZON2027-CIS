@@ -1,0 +1,355 @@
+---
+
+- name: "PRELIM | AUDIT | Set facts based on boot type"
+  tags: always
+  block:
+    - name: "PRELIM | AUDIT | Check whether machine is UEFI-based"
+      ansible.builtin.stat:
+        path: /sys/firmware/efi
+      register: prelim_efi_boot
+
+    - name: "PRELIM | AUDIT | Set legacy boot and grub path | Bios"
+      when: not prelim_efi_boot.stat.exists
+      ansible.builtin.set_fact:
+        amzn2027cis_legacy_boot: true
+        grub2_path: /etc/grub2.cfg
+
+    - name: "PRELIM | AUDIT | Set grub fact | UEFI"
+      when: prelim_efi_boot.stat.exists
+      ansible.builtin.set_fact:
+        grub2_path: /etc/grub2-efi.cfg
+
+- name: "PRELIM | Include pre-remediation audit tasks"
+  when: run_audit or audit_only
+  tags: run_audit
+  ansible.builtin.import_tasks: pre_remediation_audit.yml
+
+- name: "PRELIM | AUDIT | Interactive Users"
+  tags: always
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -E -v '^(root|halt|sync|shutdown)' /etc/passwd | awk -F: '(!index($7, "sbin/nologin") && $7 != "/bin/nologin" && $7 != "/bin/false" && $7 != "/dev/null") { print $1":"$3":"$6 }'
+  args:
+    executable: "{{ amzn2027cis_shell_executable }}"
+  changed_when: false
+  check_mode: false
+  register: prelim_interactive_users_raw
+
+- name: "PRELIM | AUDIT | Interactive Users (initialise)"
+  tags: always
+  ansible.builtin.set_fact:
+    prelim_interactive_users: []
+
+- name: "PRELIM | AUDIT | Interactive Users (reformat)"
+  tags: always
+  ansible.builtin.set_fact:
+    prelim_interactive_users: "{{ prelim_interactive_users | default([]) + [dict([('username', item.split(':')[0]), ('uid', item.split(':')[1]), ('home', item.split(':')[2])])] }}"
+  loop: "{{ prelim_interactive_users_raw.stdout_lines }}"
+
+- name: "PRELIM | AUDIT | Interactive User accounts home directories"
+  tags: always
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -E -v '^(root|halt|sync|shutdown)' /etc/passwd | awk -F: '(!index($7, "sbin/nologin") && $7 != "/bin/nologin" && $7 != "/bin/false" && $7 != "/dev/null") { print $6 }'
+  args:
+    executable: "{{ amzn2027cis_shell_executable }}"
+  changed_when: false
+  check_mode: false
+  register: prelim_interactive_users_home
+
+- name: "PRELIM | AUDIT | Capture /etc/password variables"
+  tags: always
+  ansible.builtin.include_tasks:
+    file: parse_etc_password.yml
+
+- name: "PRELIM | PATCH | Ensure python3-libselinux is installed"
+  when: "'python3-libselinux' not in ansible_facts['packages']"
+  ansible.builtin.package:
+    name: python3-libselinux
+    state: present
+
+- name: PRELIM | AUDIT | Section 1.1 | Create list of mount points
+  tags: always
+  ansible.builtin.set_fact:
+    prelim_mount_names: "{{ ansible_facts['mounts'] | map(attribute='mount') | list }}"
+
+- name: PRELIM | AUDIT | Section 1.1 | Retrieve mount options
+  tags: always
+  block:
+    - name: PRELIM | AUDIT | Section 1.1 | Retrieve mount options - call mount  # noqa command-instead-of-module
+      ansible.builtin.shell: |
+        set -o pipefail
+        mount | awk '{print $1, $3, $5, $6}'
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      register: prelim_mount_output
+
+    - name: PRELIM | AUDIT | Section 1.1 | Retrieve mount options - build fact  # This is inherited and used in mountpoints tasks
+      ansible.builtin.set_fact:
+        prelim_mount_point_fs_and_options: >-
+          {%- set prelim_mount_point_fs_and_options = {} -%}
+          {%- for line in prelim_mount_output.stdout_lines -%}
+          {%- set fields = line.split() -%}
+          {%- set _ = prelim_mount_point_fs_and_options.update({fields[1]: {'src': fields[0], 'fs_type': fields[2], 'original_options': fields[3][1:-1].split(','), 'options': fields[3][1:-1].split(',')}}) -%}
+          {%- endfor -%}
+          {{ prelim_mount_point_fs_and_options }}
+
+    - name: "PRELIM | AUDIT | Debug of mount variables to assist in troubleshooting"
+      when: amzn2027cis_debug_mount_data
+      ansible.builtin.debug:
+        msg: "{{ prelim_mount_point_fs_and_options }}"
+
+- name: "PRELIM | AUDIT | Section 1.1.2.1 | Discover how /tmp is mounted"
+  when: amzn2027cis_tmp_svc == 'auto'
+  tags: always
+  ansible.builtin.systemd_service:
+    name: tmp.mount
+  check_mode: false
+  register: prelim_tmp_mount_source
+
+- name: "PRELIM | AUDIT | Section 1.1.2.1 | Set /tmp management method"
+  tags: always
+  ansible.builtin.set_fact:
+    prelim_tmp_svc: >-
+      {{ (prelim_tmp_mount_source.status.ActiveState == 'active' and
+          prelim_tmp_mount_source.status.SourcePath | default('') != '/etc/fstab')
+         if amzn2027cis_tmp_svc == 'auto'
+         else amzn2027cis_tmp_svc | bool }}
+
+- name: "PRELIM | PATCH | Update to latest gpg keys"
+  when: amzn2027cis_rule_1_2_1_1
+  tags:
+    - level1-server
+    - rule_1.2.1.1
+    - gpg
+  ansible.builtin.package:
+    name: "{{ gpg_key_package }}"
+    state: latest
+
+- name: "PRELIM | AUDIT | Check systemd coredump"
+  when: amzn2027cis_rule_1_5_9 or amzn2027cis_rule_1_5_10
+  tags:
+    - level1-server
+    - rule_1.5.9
+    - rule_1.5.10
+    - systemd
+  ansible.builtin.stat:
+    path: /usr/lib/systemd/systemd-coredump
+  register: prelim_systemd_coredump
+
+- name: "PRELIM | AUDIT | Check systemd journald.conf"
+  when: amzn2027cis_rule_6_1_1_3 or amzn2027cis_rule_6_1_1_4
+  tags:
+    - level1-server
+    - rule_6.1.1.3
+    - rule_6.1.1.4
+    - journald
+  ansible.builtin.stat:
+    path: /etc/systemd/journald.conf
+  register: prelim_systemd_journald_conf
+
+- name: "PRELIM | PATCH | Setup crypto-policy"
+  when: amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level1-server
+    - rule_1.6.1
+    - crypto
+  block:
+    - name: "PRELIM | PATCH | Install crypto-policies | pkgs present"
+      ansible.builtin.package:
+        name:
+          - crypto-policies
+          - crypto-policies-scripts
+        state: present
+
+    - name: "PRELIM | AUDIT | Gather system-wide crypto-policy"
+      ansible.builtin.command: 'update-crypto-policies --show'
+      changed_when: false
+      check_mode: false
+      register: prelim_system_wide_crypto_policy
+
+    - name: "PRELIM | AUDIT | Gather system-wide crypto-policy | set fact system policy"
+      ansible.builtin.set_fact:
+        current_crypto_policy: "{{ prelim_system_wide_crypto_policy.stdout.split(':')[0] }}"
+
+    - name: "PRELIM | AUDIT | Gather system-wide crypto-policy module | set fact system policy submodule"
+      when: "':' in prelim_system_wide_crypto_policy.stdout"
+      ansible.builtin.set_fact:
+        current_crypto_module: "{{ prelim_system_wide_crypto_policy.stdout.split(':')[1] }}"
+
+- name: "PRELIM | AUDIT | Discover Gnome Desktop Environment"
+  tags: always
+  ansible.builtin.stat:
+    path: /usr/share/gnome/gnome-version.xml
+  register: prelim_gnome_present
+
+- name: "PRELIM | PATCH | Install dconf if gui installed"
+  when: amzn2027cis_gui
+  tags: always
+  ansible.builtin.package:
+    name: dconf
+    state: present
+
+- name: "PRELIM | PATCH | Install Cronie"
+  when:
+    - amzn2027cis_rule_2_4_1_1 or amzn2027cis_rule_2_4_1_2 or amzn2027cis_rule_2_4_1_3 or
+      amzn2027cis_rule_2_4_1_4 or amzn2027cis_rule_2_4_1_5 or amzn2027cis_rule_2_4_1_6 or
+      amzn2027cis_rule_2_4_1_7 or amzn2027cis_rule_2_4_1_8 or amzn2027cis_rule_2_4_1_9
+    - "'cronie' not in ansible_facts['packages']"
+  tags:
+    - level1-server
+    - rule_2.4.1.1
+    - cron
+  ansible.builtin.package:
+    name: cronie
+    state: present
+
+- name: "PRELIM | PATCH | SSH Config file is not exist"
+  when:
+    - amzn2027cis_sshd_config_file != '/etc/ssh/sshd_config'
+    - "'openssh-server' in ansible_facts['packages']"
+  tags:
+    - always
+    - level1-server
+  ansible.builtin.file:
+    path: "{{ amzn2027cis_sshd_config_file }}"
+    owner: root
+    group: root
+    mode: 'go-rwx'
+    state: touch
+    modification_time: preserve
+    access_time: preserve
+
+- name: "PRELIM | PATCH | sshd_config.d/50-redhat.conf exists"
+  when: amzn2027cis_rule_5_1_11 or amzn2027cis_rule_5_1_12
+  tags:
+    - level1-server
+    - level2-server
+    - patch
+    - sshd
+    - rule_5.1.11
+    - rule_5.1.12
+  ansible.builtin.stat:
+    path: /etc/ssh/sshd_config.d/50-redhat.conf
+  register: prelim_sshd_50_redhat_file
+
+- name: "PRELIM | AUDIT | Capture pam security related files"
+  tags: always
+  ansible.builtin.find:
+    paths:
+      - /etc/security/pwquality.conf.d/
+    patterns: '*.conf'
+  register: prelim_pam_pwquality_confs
+
+- name: "PRELIM | AUDIT | Gather UID 0 accounts other than root"
+  when: amzn2027cis_rule_5_4_2_1
+  tags:
+    - rule_5.4.2.1
+    - level1-server
+    - users
+  ansible.builtin.shell: |
+    set -o pipefail
+    cat /etc/passwd | awk -F: '($3 == 0 && $1 != "root") {i++;print $1 } END {exit i}'
+  args:
+    executable: "{{ amzn2027cis_shell_executable }}"
+  changed_when: false
+  check_mode: false
+  register: prelim_uid_zero_accounts_except_root
+
+- name: "PRELIM | PATCH | Create journald config directory"
+  when: amzn2027cis_rule_6_1_1_3 or amzn2027cis_rule_6_1_1_4
+  tags: always
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: 'u+x,g-w,o-rwx'
+
+- name: "PRELIM | AUDIT | Discover if auditd is immutable"
+  tags: always
+  ansible.builtin.command: grep -c "^-e 2" /etc/audit/rules.d/99_auditd.rules
+  changed_when: false
+  check_mode: false
+  failed_when: prelim_auditd_immutable_check.rc not in [ 0, 1, 2 ]
+  register: prelim_auditd_immutable_check
+
+- name: "PRELIM | PATCH | Configure System Accounting (auditd)"
+  when:
+    - "'auditd' not in ansible_facts['packages']"
+    - amzn2027cis_rule_6_2_1_1
+  tags:
+    - level2-server
+    - patch
+    - rule_6.2.1.1
+    - auditd
+  ansible.builtin.package:
+    name: audit
+    state: present
+  become: true
+
+- name: "PRELIM | AUDIT | Discover audit logfile"
+  when:
+    - amzn2027cis_rule_6_2_4_1 or
+      amzn2027cis_rule_6_2_4_2 or
+      amzn2027cis_rule_6_2_4_3 or
+      amzn2027cis_rule_6_2_4_4
+  tags: always
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep ^log_file /etc/audit/auditd.conf | awk '{ print $NF }'
+  args:
+    executable: "{{ amzn2027cis_shell_executable }}"
+  changed_when: false
+  check_mode: false
+  register: prelim_auditd_logfile
+
+- name: "PRELIM | AUDIT | Audit conf and rules files | list files"
+  when:
+    - amzn2027cis_rule_6_2_4_5 or
+      amzn2027cis_rule_6_2_4_6 or
+      amzn2027cis_rule_6_2_4_7
+  tags:
+    - level2-server
+    - patch
+    - auditd
+    - rule_6.2.4.5
+    - rule_6.2.4.6
+    - rule_6.2.4.7
+  ansible.builtin.find:
+    path: /etc/audit
+    file_type: file
+    recurse: true
+    patterns: '*.conf,*.rules'
+  register: prelim_auditd_conf_files
+
+- name: "PRELIM | AUDIT | Discover Interactive UID_MIN and UID_MAX from /etc/login.defs"
+  when: amzn2027cis_discover_int_uid
+  tags: always
+  block:
+    - name: "PRELIM | AUDIT | Capture UID_MIN from /etc/login.defs"
+      ansible.builtin.command: awk '/^UID_MIN/ {print $2}' /etc/login.defs
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: prelim_uid_min_id
+
+    - name: "PRELIM | AUDIT | Capture UID_MAX from /etc/login.defs"
+      ansible.builtin.command: awk '/^UID_MAX/ {print $2}' /etc/login.defs
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: prelim_uid_max_id
+
+- name: "PRELIM | AUDIT | Set facts for interactive UID/GID ranges"
+  tags: always
+  ansible.builtin.set_fact:
+    prelim_min_int_uid: "{{ prelim_uid_min_id.stdout | default(min_int_uid) }}"
+    prelim_max_int_uid: "{{ prelim_uid_max_id.stdout | default(max_int_uid) }}"
+
+- name: "PRELIM | AUDIT | Gather the package facts after prelim"
+  tags: always
+  ansible.builtin.package_facts:
+    manager: auto

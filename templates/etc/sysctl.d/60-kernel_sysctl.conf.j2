@@ -1,0 +1,31 @@
+{{ file_managed_by_ansible }}
+## YOUR CHANGES WILL BE LOST!
+
+{% if amzn2027cis_rule_1_5_1 %}
+# CIS 1.5.1
+fs.protected_hardlinks = 1
+{% endif %}
+{% if amzn2027cis_rule_1_5_2 %}
+# CIS 1.5.2
+fs.protected_symlinks = 1
+{% endif %}
+{% if amzn2027cis_rule_1_5_3 %}
+# CIS 1.5.3
+fs.suid_dumpable = 0
+{% endif %}
+{% if amzn2027cis_rule_1_5_4 %}
+# CIS 1.5.4
+kernel.dmesg_restrict = 1
+{% endif %}
+{% if amzn2027cis_rule_1_5_5 %}
+# CIS 1.5.5
+kernel.kptr_restrict = 2
+{% endif %}
+{% if amzn2027cis_rule_1_5_6 %}
+# CIS 1.5.6
+kernel.randomize_va_space = 2
+{% endif %}
+{% if amzn2027cis_rule_1_5_7 %}
+# CIS 1.5.7
+kernel.yama.ptrace_scope = 1
+{% endif %}

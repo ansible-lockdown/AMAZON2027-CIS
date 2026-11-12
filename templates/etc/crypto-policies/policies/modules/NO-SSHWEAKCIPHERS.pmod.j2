@@ -1,0 +1,5 @@
+{{ file_managed_by_ansible }}
+# This is a subpolicy to disable weak ciphers
+# for the SSH protocol (libssh and OpenSSH)
+# Carried out as part of CIS Benchmark rules combined 1.6.5 and 5.1.5
+cipher@SSH ={% if amzn2027cis_rule_5_1_5 %} -3DES-CBC -AES-128-CBC -AES-192-CBC -AES-256-CBC{% endif %}{% if amzn2027cis_rule_1_6_5 %} -CHACHA20-POLY1305{% endif %}

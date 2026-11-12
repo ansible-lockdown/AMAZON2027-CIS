@@ -1,0 +1,530 @@
+---
+
+- name: "6.1.2.1 | PATCH | Ensure rsyslog is installed"
+  when:
+    - "'rsyslog' not in ansible_facts['packages']"
+    - amzn2027cis_rule_6_1_2_1
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rsyslog
+    - NIST800-53R5_CM-6
+    - rule_6.1.2.1
+  ansible.builtin.package:
+    name: rsyslog
+    state: present
+
+- name: "6.1.2.2 | PATCH | Ensure rsyslog service is enabled and active"
+  when: amzn2027cis_rule_6_1_2_2
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.2
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+  ansible.builtin.systemd:
+    name: rsyslog
+    masked: false
+    enabled: true
+    state: started
+
+- name: "6.1.2.3 | PATCH | Ensure rsyslog log file creation mode is configured"
+  when: amzn2027cis_rule_6_1_2_3
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.3
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_AC-6
+    - NIST800-53R5_MP-2
+  notify: Restart rsyslog
+  block:
+    - name: "6.1.2.3 | AUDIT | Ensure rsyslog log file creation mode is configured | Find drop-in files"
+      ansible.builtin.find:
+        paths: /etc/rsyslog.d
+        patterns: '*.conf'
+        contains: '^\s*(\$FileCreateMode\s+|.*\bfileCreateMode\s*=\s*"?)0?([1357][0-7]{2}|[0-7][1235-7][0-7]|[0-7]{2}[1-7])\b'
+      register: discovered_rsyslog_filecreatemode_dropins
+
+    - name: "6.1.2.3 | PATCH | Ensure rsyslog log file creation mode is configured | Comment out permissive modes in drop-ins"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '^(\s*(\$FileCreateMode\s+|.*\bfileCreateMode\s*=\s*"?)0?([1357][0-7]{2}|[0-7][1235-7][0-7]|[0-7]{2}[1-7])\b.*)$'
+        replace: '#\1'
+      loop: "{{ discovered_rsyslog_filecreatemode_dropins.files }}"
+
+    - name: "6.1.2.3 | AUDIT | Ensure rsyslog log file creation mode is configured | Find global fileCreateMode settings"
+      ansible.builtin.find:
+        paths: /etc/rsyslog.d
+        patterns: '*.conf'
+        contains: '^\s*global\(.*\bfileCreateMode\s*='
+      register: discovered_rsyslog_global_filecreatemode
+
+    - name: "6.1.2.3 | PATCH | Ensure rsyslog log file creation mode is configured | Comment out global fileCreateMode, which rsyslog rejects"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*global\(.*\bfileCreateMode\s*=.*)$'
+        replace: '#\1'
+      loop: "{{ ['/etc/rsyslog.conf'] + (discovered_rsyslog_global_filecreatemode.files | map(attribute='path') | list) }}"
+
+    - name: "6.1.2.3 | PATCH | Ensure rsyslog log file creation mode is configured | Comment out permissive mode in rsyslog.conf"
+      ansible.builtin.replace:
+        path: /etc/rsyslog.conf
+        regexp: '^(\s*\$FileCreateMode\s+0?([1357][0-7]{2}|[0-7][1235-7][0-7]|[0-7]{2}[1-7])\b.*)$'
+        replace: '#\1'
+
+    - name: "6.1.2.3 | PATCH | Ensure rsyslog log file creation mode is configured | Set mode in drop-in"
+      ansible.builtin.lineinfile:
+        path: /etc/rsyslog.d/20-file-create-mode.conf
+        regexp: '^\s*#?\s*\$FileCreateMode\s'
+        line: '$FileCreateMode 0640'
+        create: true
+        owner: root
+        group: root
+        mode: 'u-x,g-wx,o-rwx'
+
+- name: "6.1.2.4 | PATCH | Ensure access to rsyslog configuration files is configured"
+  when: amzn2027cis_rule_6_1_2_4
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.4
+    - NIST800-53R5_AC-3
+  block:
+    - name: "6.1.2.4 | PATCH | Ensure access to rsyslog configuration files is configured | rsyslog.conf"
+      ansible.builtin.file:
+        path: /etc/rsyslog.conf
+        owner: root
+        group: root
+        mode: 'u-x,g-wx,o-rwx'
+
+    - name: "6.1.2.4 | AUDIT | Ensure access to rsyslog configuration files is configured | Find drop-in files"
+      ansible.builtin.find:
+        paths: /etc/rsyslog.d
+        patterns: '*.conf'
+        file_type: file
+      register: discovered_rsyslog_conf_dropins
+
+    - name: "6.1.2.4 | PATCH | Ensure access to rsyslog configuration files is configured | Drop-in files"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'u-x,g-wx,o-rwx'
+      loop: "{{ discovered_rsyslog_conf_dropins.files }}"
+
+- name: "6.1.2.5 | PATCH | Ensure access to the /etc/rsyslog.d directory is configured"
+  when: amzn2027cis_rule_6_1_2_5
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.5
+    - NIST800-53R5_AC-3
+  ansible.builtin.file:
+    path: /etc/rsyslog.d
+    state: directory
+    owner: root
+    group: root
+    mode: 'g-w,o-w'
+
+- name: "6.1.2.6 | PATCH | Ensure access to the rsyslog work directory is configured"
+  when: amzn2027cis_rule_6_1_2_6
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.6
+    - NIST800-53R5_AC-3
+  block:
+    - name: "6.1.2.6 | AUDIT | Ensure access to the rsyslog work directory is configured | Get configured work directory"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Psoh -- '^[^#]*(\$WorkDirectory\h+|workDirectory\h*=\h*"?)\K[^"\h)]+' /etc/rsyslog.conf /etc/rsyslog.d/*.conf | tail -n 1
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_rsyslog_workdir
+
+    - name: "6.1.2.6 | PATCH | Ensure access to the rsyslog work directory is configured | Set ownership and mode"
+      ansible.builtin.file:
+        path: "{{ discovered_rsyslog_workdir.stdout | default('/var/lib/rsyslog', true) }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 'go-rwx'
+
+- name: "6.1.2.7 | PATCH | Ensure rsyslog is not configured as a log server"
+  when: amzn2027cis_rule_6_1_2_7
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.7
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-7
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_CM-6
+  block:
+    - name: "6.1.2.7 | AUDIT | Ensure rsyslog is not configured as a log server | Find drop-in files"
+      ansible.builtin.find:
+        paths: /etc/rsyslog.d
+        patterns: '*.conf'
+        file_type: file
+      register: discovered_rsyslog_logserver_dropins
+
+    - name: "6.1.2.7 | PATCH | Ensure rsyslog is not configured as a log server | When not log host | module load"
+      when: not amzn2027cis_system_is_log_server
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*module\(load="?(imtcp|imudp|imptcp|imrelp)"?.*)$'
+        replace: '#\1'
+      notify: Restart rsyslog
+      loop: "{{ ['/etc/rsyslog.conf'] + (discovered_rsyslog_logserver_dropins.files | map(attribute='path') | list) }}"
+
+    - name: "6.1.2.7 | PATCH | Ensure rsyslog is not configured as a log server | When not log host | input"
+      when: not amzn2027cis_system_is_log_server
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*input\(type="?(imtcp|imudp|imptcp|imrelp)"?.*)$'
+        replace: '#\1'
+      notify: Restart rsyslog
+      loop: "{{ ['/etc/rsyslog.conf'] + (discovered_rsyslog_logserver_dropins.files | map(attribute='path') | list) }}"
+
+    - name: "6.1.2.7 | PATCH | Ensure rsyslog is not configured as a log server | When not log host | legacy ModLoad"
+      when: not amzn2027cis_system_is_log_server
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*\$ModLoad\s+(imtcp|imudp|imptcp|imrelp)\b.*)$'
+        replace: '#\1'
+      notify: Restart rsyslog
+      loop: "{{ ['/etc/rsyslog.conf'] + (discovered_rsyslog_logserver_dropins.files | map(attribute='path') | list) }}"
+
+    - name: "6.1.2.7 | PATCH | Ensure rsyslog is not configured as a log server | When not log host | legacy server run"
+      when: not amzn2027cis_system_is_log_server
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*\$(InputTCPServerRun|UDPServerRun|InputPTCPServerRun|InputRELPServerRun)\b.*)$'
+        replace: '#\1'
+      notify: Restart rsyslog
+      loop: "{{ ['/etc/rsyslog.conf'] + (discovered_rsyslog_logserver_dropins.files | map(attribute='path') | list) }}"
+
+    - name: "6.1.2.7 | PATCH | Ensure rsyslog is not configured as a log server | When log host"
+      when: amzn2027cis_system_is_log_server
+      ansible.builtin.replace:
+        path: /etc/rsyslog.conf
+        regexp: '{{ item }}'
+        replace: '\1'
+      notify: Restart rsyslog
+      loop:
+        - '^#\s*(module\(load="imtcp"\).*)$'
+        - '^#\s*(input\(type="imtcp".*)$'
+        - '^#\s*(\$ModLoad imtcp.*)$'
+        - '^#\s*(\$InputTCPServerRun.*)$'
+
+- name: "6.1.2.8 | PATCH | Ensure rsyslog logging rules are configured"
+  when: amzn2027cis_rule_6_1_2_8
+  tags:
+    - level1-server
+    - manual
+    - patch
+    - rsyslog
+    - rule_6.1.2.8
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-7
+    - NIST800-53R5_AU-12
+  block:
+    - name: "6.1.2.8 | AUDIT | Ensure rsyslog logging rules are configured | rsyslog current config message out"
+      ansible.builtin.shell: |
+        set -o pipefail
+        cat /etc/rsyslog.conf | grep -Ev "^#|^$"
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_configured_rsyslog
+
+    - name: "6.1.2.8 | AUDIT | Ensure rsyslog logging rules are configured | rsyslog current config message out"
+      ansible.builtin.debug:
+        msg:
+          - "These are the current logging configurations for rsyslog, please review:"
+          - "{{ discovered_configured_rsyslog.stdout_lines }}"
+
+    - name: "6.1.2.8 | PATCH | Ensure rsyslog logging rules are configured | mail.* log setting"
+      ansible.builtin.blockinfile:
+        path: /etc/rsyslog.conf
+        marker: "# {mark} MAIL LOG SETTINGS - CIS benchmark - Ansible-lockdown"
+        block: |
+          # mail logging additions to meet CIS standards
+          mail.*                                                  -/var/log/mail
+          mail.info                                               -/var/log/mail.info
+          mail.warning                                            -/var/log/mail.warning
+          mail.err                                                /var/log/mail.err
+        insertafter: '# Log all the mail messages in one place.'
+      notify: Restart rsyslog
+
+    - name: "6.1.2.8 | PATCH | Ensure rsyslog logging rules are configured | news.crit log setting"
+      ansible.builtin.blockinfile:
+        path: /etc/rsyslog.conf
+        state: present
+        marker: "# {mark} NEWS LOG SETTINGS - CIS benchmark - Ansible-lockdown"
+        block: |
+          # news logging additions to meet CIS standards
+          news.crit                                               -/var/log/news/news.crit
+          news.notice                                             -/var/log/news/news.crit
+        insertafter: '# Save news errors of level crit and higher in a special file.'
+      notify: Restart rsyslog
+
+    - name: "6.1.2.8 | PATCH | Ensure rsyslog logging rules are configured | Misc. log setting"
+      ansible.builtin.blockinfile:
+        path: /etc/rsyslog.conf
+        state: present
+        marker: "# {mark} MISC. LOG SETTINGS - CIS benchmark - Ansible-lockdown"
+        block: |
+          # misc. logging additions to meet CIS standards
+          *.=warning;*.=err                                        -/var/log/warn
+          *.crit                                                   /var/log/warn
+          *.*;mail.none;news.none                                  /var/log/messages
+        insertbefore: '# ### sample forwarding rule ###'
+      notify: Restart rsyslog
+
+    - name: "6.1.2.8 | PATCH | Ensure rsyslog logging rules are configured | Local log settings"
+      ansible.builtin.blockinfile:
+        path: /etc/rsyslog.conf
+        state: present
+        marker: "#{mark} LOCAL LOG SETTINGS - CIS benchmark - Ansible-lockdown"
+        block: |
+          # local log settings to meet CIS standards
+          local0,local1.*                                          -/var/log/localmessages
+          local2,local3.*                                          -/var/log/localmessages
+          local4,local5.*                                          -/var/log/localmessages
+          local6,local7.*                                          -/var/log/localmessages
+          *.emerg                                                    :omusrmsg:*
+        insertafter: '#### RULES ####'
+      notify: Restart rsyslog
+
+    - name: "6.1.2.8 | PATCH | Ensure rsyslog logging rules are configured | Auth Settings"
+      ansible.builtin.blockinfile:
+        path: /etc/rsyslog.conf
+        state: present
+        marker: "#{mark} Auth SETTINGS - CIS benchmark - Ansible-lockdown"
+        block: |
+          # Private settings to meet CIS standards
+          auth,authpriv.*                                           /var/log/secure
+        insertafter: '#### RULES ####'
+      notify: Restart rsyslog
+
+    - name: "6.1.2.8 | PATCH | Ensure rsyslog logging rules are configured | Cron Settings"
+      ansible.builtin.blockinfile:
+        path: /etc/rsyslog.conf
+        state: present
+        marker: "#{mark} Cron SETTINGS - CIS benchmark - Ansible-lockdown"
+        block: |
+          # Cron settings to meet CIS standards
+          cron.*                                                   /var/log/cron
+        insertafter: '#### RULES ####'
+      notify: Restart rsyslog
+
+- name: "6.1.2.9 | PATCH | Ensure rsyslog is configured to send logs to a remote log host"
+  when:
+    - amzn2027cis_rule_6_1_2_9
+    - amzn2027cis_remote_log_server
+  tags:
+    - level1-server
+    - manual
+    - patch
+    - rsyslog
+    - rule_6.1.2.9
+    - NIST800-53R5_AU-6
+  ansible.builtin.blockinfile:
+    path: /etc/rsyslog.conf
+    state: present
+    block: |
+      # target can be IP or FQDN
+      {% if amzn2027cis_rule_6_1_2_11 and amzn2027cis_remote_log_tls %}
+      *.* action(type="omfwd" target="{{ amzn2027cis_remote_log_host }}" port="{{ amzn2027cis_remote_log_tls_port }}" protocol="tcp" StreamDriver="ossl" StreamDriverMode="1" StreamDriverAuthMode="{{ amzn2027cis_remote_log_tls_authmode }}" StreamDriverPermittedPeers="{{ amzn2027cis_remote_log_tls_permitted_peers }}" action.resumeRetryCount="{{ amzn2027cis_remote_log_retrycount }}" queue.type="LinkedList" queue.size="{{ amzn2027cis_remote_log_queuesize }}")
+      {% else %}
+      *.* action(type="omfwd" target="{{ amzn2027cis_remote_log_host }}" port="{{ amzn2027cis_remote_log_port }}" protocol="{{ amzn2027cis_remote_log_protocol }}" action.resumeRetryCount="{{ amzn2027cis_remote_log_retrycount }}" queue.type="LinkedList" queue.size="{{ amzn2027cis_remote_log_queuesize }}")
+      {% endif %}
+    insertafter: EOF
+  notify: Restart rsyslog
+
+- name: "6.1.2.10 | PATCH | Ensure a rsyslog TLS network stream driver is installed"
+  when:
+    - amzn2027cis_rule_6_1_2_10
+    - amzn2027cis_remote_log_server
+    - amzn2027cis_remote_log_tls
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.10
+    - NIST800-53R5_SC-8
+  ansible.builtin.package:
+    name: rsyslog-openssl
+    state: present
+  notify: Restart rsyslog
+
+- name: "6.1.2.11 | PATCH | Ensure rsyslog network forwarding uses TLS"
+  when:
+    - amzn2027cis_rule_6_1_2_11
+    - amzn2027cis_remote_log_server
+    - amzn2027cis_remote_log_tls
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - rsyslog
+    - rule_6.1.2.11
+    - NIST800-53R5_SC-8
+  ansible.builtin.blockinfile:
+    path: /etc/rsyslog.conf
+    state: present
+    marker: "# {mark} TLS GLOBAL SETTINGS - CIS benchmark - Ansible-lockdown"
+    block: |
+      global(
+        DefaultNetstreamDriver="ossl"
+        DefaultNetstreamDriverCAFile="{{ amzn2027cis_remote_log_tls_cafile }}"
+      {% if amzn2027cis_remote_log_tls_certfile | length > 0 and amzn2027cis_remote_log_tls_keyfile | length > 0 %}
+        DefaultNetstreamDriverCertFile="{{ amzn2027cis_remote_log_tls_certfile }}"
+        DefaultNetstreamDriverKeyFile="{{ amzn2027cis_remote_log_tls_keyfile }}"
+      {% endif %}
+      )
+    insertafter: '^#### GLOBAL DIRECTIVES ####'
+  notify: Restart rsyslog
+
+- name: "6.1.2.12 | AUDIT | Ensure rsyslog TLS CA certificate is configured"
+  when:
+    - amzn2027cis_rule_6_1_2_12
+    - amzn2027cis_remote_log_server
+    - amzn2027cis_remote_log_tls
+  tags:
+    - level2-server
+    - manual
+    - audit
+    - rsyslog
+    - rule_6.1.2.12
+    - NIST800-53R5_SC-17
+  block:
+    - name: "6.1.2.12 | AUDIT | Ensure rsyslog TLS CA certificate is configured | Check CA file"
+      ansible.builtin.command: openssl x509 -in "{{ amzn2027cis_remote_log_tls_cafile }}" -noout -subject
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_rsyslog_tls_cafile
+
+    - name: "6.1.2.12 | AUDIT | Ensure rsyslog TLS CA certificate is configured | Warn if CA file not readable"
+      when: discovered_rsyslog_tls_cafile.rc != 0
+      ansible.builtin.debug:
+        msg: "Warning!! - rsyslog TLS CA file {{ amzn2027cis_remote_log_tls_cafile }} is missing or not a readable certificate, please provide the CA that signed the log server certificate"
+
+    - name: "6.1.2.12 | AUDIT | Ensure rsyslog TLS CA certificate is configured | Warn count"
+      when: discovered_rsyslog_tls_cafile.rc != 0
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '6.1.2.12'
+
+- name: "6.1.2.13 | PATCH | Ensure rsyslog TLS client certificate is configured"
+  when:
+    - amzn2027cis_rule_6_1_2_13
+    - amzn2027cis_remote_log_server
+    - amzn2027cis_remote_log_tls
+  tags:
+    - level2-server
+    - manual
+    - patch
+    - rsyslog
+    - rule_6.1.2.13
+    - NIST800-53R5_SC-17
+  block:
+    - name: "6.1.2.13 | AUDIT | Ensure rsyslog TLS client certificate is configured | Check client key file"
+      when: amzn2027cis_remote_log_tls_keyfile | length > 0
+      ansible.builtin.stat:
+        path: "{{ amzn2027cis_remote_log_tls_keyfile }}"
+      register: discovered_rsyslog_tls_keyfile
+
+    - name: "6.1.2.13 | PATCH | Ensure rsyslog TLS client certificate is configured | Restrict client key file"
+      when:
+        - amzn2027cis_remote_log_tls_keyfile | length > 0
+        - discovered_rsyslog_tls_keyfile.stat.exists
+      ansible.builtin.file:
+        path: "{{ amzn2027cis_remote_log_tls_keyfile }}"
+        owner: root
+        mode: 'u-x,go-rwx'
+
+    - name: "6.1.2.13 | AUDIT | Ensure rsyslog TLS client certificate is configured | Warn if client certificate not configured"
+      when: >
+        amzn2027cis_remote_log_tls_certfile | length == 0 or
+        amzn2027cis_remote_log_tls_keyfile | length == 0 or
+        not discovered_rsyslog_tls_keyfile.stat.exists | default(false)
+      ansible.builtin.debug:
+        msg: "Warning!! - rsyslog TLS client certificate and key are not configured or the key file is missing, please provide them to enable mutual TLS"
+
+    - name: "6.1.2.13 | AUDIT | Ensure rsyslog TLS client certificate is configured | Warn count"
+      when: >
+        amzn2027cis_remote_log_tls_certfile | length == 0 or
+        amzn2027cis_remote_log_tls_keyfile | length == 0 or
+        not discovered_rsyslog_tls_keyfile.stat.exists | default(false)
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '6.1.2.13'
+
+- name: "6.1.2.14 | PATCH | Ensure logrotate is configured"
+  when: amzn2027cis_rule_6_1_2_14
+  tags:
+    - level1-server
+    - manual
+    - patch
+    - logrotate
+    - rule_6.1.2.14
+    - NIST800-53R5_AU-8
+  block:
+    - name: "6.1.2.14 | PATCH | Ensure logrotate is configured | installed"
+      ansible.builtin.package:
+        name: logrotate
+        state: present
+
+    - name: "6.1.2.14 | PATCH | Ensure logrotate is configured | scheduled"
+      ansible.builtin.systemd:
+        name: logrotate.timer
+        state: started
+        enabled: true
+
+    - name: "6.1.2.14 | PATCH | Ensure logrotate is configured | logrotate.conf baseline"
+      when: item.apply
+      ansible.builtin.lineinfile:
+        path: /etc/logrotate.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        insertbefore: '^\s*include\s'
+      loop:
+        - { regexp: '^\s*(daily|weekly|monthly|yearly)\s*$', line: "{{ amzn2027cis_rsyslog_logrotate_rotated_when }}", apply: true }
+        - { regexp: '^\s*rotate\s+\d+', line: "rotate {{ amzn2027cis_rsyslog_logrotate_rotatation_keep }}", apply: true }
+        - { regexp: '^\s*#?\s*maxage\s', line: "maxage {{ amzn2027cis_logrotate_maxage }}", apply: true }
+        - { regexp: '^\s*#?\s*compress\s*$', line: 'compress', apply: "{{ amzn2027cis_rsyslog_logrotate_compress }}" }
+        - { regexp: '^\s*#?\s*create(\s.*)?$', line: 'create', apply: "{{ amzn2027cis_rsyslog_logrotate_create }}" }
+
+    - name: "6.1.2.14 | PATCH | Ensure logrotate is configured | set rsyslog conf"
+      ansible.builtin.template:
+        src: etc/logrotate.d/rsyslog_log.j2
+        dest: /etc/logrotate.d/rsyslog_log
+        owner: root
+        group: root
+        mode: 'g-wx,o-rwx'

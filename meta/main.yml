@@ -1,0 +1,28 @@
+---
+
+galaxy_info:
+  author: Ansible-Lockdown Team
+  description: Apply the Amazon 2027 CIS
+  company: MindPoint Group - A Quantum Sky Company
+  license: MIT
+  role_name: amazon2027_cis
+  namespace: mindpointgroup
+  min_ansible_version: 2.21.0
+  platforms:
+    - name: Amazon Linux
+      versions:
+        - '2027'
+  galaxy_tags:
+    - system
+    - security
+    - hardening
+    - benchmark
+    - compliance
+    - complianceascode
+    - amazonlinux
+    - ec2
+    - cis
+collections:
+  - community.general
+  - ansible.posix
+dependencies: []

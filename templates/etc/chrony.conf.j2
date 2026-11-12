@@ -1,0 +1,7 @@
+{{ file_managed_by_ansible }}
+# Drop-in read through the confdir /etc/chrony.d directive in /etc/chrony.conf
+# Time sources for CIS 2.3.2 - other settings stay in the distribution /etc/chrony.conf
+
+{% for server in amzn2027cis_time_synchronization_servers %}
+server {{ server }} {{ amzn2027cis_chrony_server_options }}
+{% endfor %}

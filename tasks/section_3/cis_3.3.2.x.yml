@@ -1,0 +1,237 @@
+---
+
+- name: "3.3.2.1 | PATCH | Ensure net.ipv6.conf force_forwarding is not enabled"
+  when:
+    - not amzn2027cis_is_router
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_1
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.1
+  block:
+    - name: "3.3.2.1 | AUDIT | Ensure net.ipv6.conf force_forwarding is not enabled | Check the kernel provides force_forwarding"
+      ansible.builtin.stat:
+        path: /proc/sys/net/ipv6/conf/all/force_forwarding
+      register: discovered_ipv6_force_forwarding
+
+    - name: "3.3.2.1 | PATCH | Ensure net.ipv6.conf force_forwarding is not enabled | Kernel has force_forwarding"
+      when: discovered_ipv6_force_forwarding.stat.exists
+      block:
+        - name: "3.3.2.1 | AUDIT | Ensure net.ipv6.conf force_forwarding is not enabled | Find force_forwarding in /etc/sysctl.conf"
+          ansible.builtin.find:
+            paths: /etc
+            patterns: sysctl.conf
+            contains: '^\s*net[./]ipv6[./]conf[./][^\s=]+[./]force_forwarding\s*=\s*1\b'
+          register: discovered_force_forwarding_sysctl_conf
+
+        - name: "3.3.2.1 | AUDIT | Ensure net.ipv6.conf force_forwarding is not enabled | Find force_forwarding in /etc/sysctl.d"
+          ansible.builtin.find:
+            paths: /etc/sysctl.d
+            patterns: '*.conf'
+            contains: '^\s*net[./]ipv6[./]conf[./][^\s=]+[./]force_forwarding\s*=\s*1\b'
+          register: discovered_force_forwarding_sysctl_d
+
+        - name: "3.3.2.1 | PATCH | Ensure net.ipv6.conf force_forwarding is not enabled | Comment out force_forwarding = 1"
+          ansible.builtin.replace:
+            path: "{{ item }}"
+            regexp: '^(\s*net[./]ipv6[./]conf[./][^\s=]+[./]force_forwarding\s*=\s*1\b.*)$'
+            replace: '# \1'
+          loop: "{{ (discovered_force_forwarding_sysctl_conf.files + discovered_force_forwarding_sysctl_d.files) | map(attribute='path') | list }}"
+
+        - name: "3.3.2.1 | AUDIT | Ensure net.ipv6.conf force_forwarding is not enabled | Running config"
+          ansible.builtin.shell: |
+            set -o pipefail
+            grep -l '^1$' /proc/sys/net/ipv6/conf/*/force_forwarding
+          args:
+            executable: "{{ amzn2027cis_shell_executable }}"
+          changed_when: false
+          failed_when: discovered_force_forwarding_running.rc not in [ 0, 1 ]
+          check_mode: false
+          register: discovered_force_forwarding_running
+
+        - name: "3.3.2.1 | PATCH | Ensure net.ipv6.conf force_forwarding is not enabled | Clear force_forwarding in the running config"
+          when:
+            - not system_is_container
+            - discovered_force_forwarding_running.stdout_lines | length > 0
+          ansible.builtin.command: sysctl -w net.ipv6.conf.all.forwarding=0
+          changed_when: true
+
+- name: "3.3.2.2 | PATCH | Ensure net.ipv6.conf.all.forwarding is configured"
+  when:
+    - not amzn2027cis_is_router
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_2
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.2
+  block:
+    - name: "3.3.2.2 | PATCH | Ensure net.ipv6.conf.all.forwarding is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.2 | PATCH | Ensure net.ipv6.conf.all.forwarding is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"
+
+- name: "3.3.2.3 | PATCH | Ensure net.ipv6.conf.default.forwarding is configured"
+  when:
+    - not amzn2027cis_is_router
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_3
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.3
+  block:
+    - name: "3.3.2.3 | PATCH | Ensure net.ipv6.conf.default.forwarding is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.3 | PATCH | Ensure net.ipv6.conf.default.forwarding is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"
+
+- name: "3.3.2.4 | PATCH | Ensure net.ipv6.conf.all.accept_redirects is configured"
+  when:
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_4
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.4
+  block:
+    - name: "3.3.2.4 | PATCH | Ensure net.ipv6.conf.all.accept_redirects is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.4 | PATCH | Ensure net.ipv6.conf.all.accept_redirects is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"
+
+- name: "3.3.2.5 | PATCH | Ensure net.ipv6.conf.default.accept_redirects is configured"
+  when:
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_5
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.5
+  block:
+    - name: "3.3.2.5 | PATCH | Ensure net.ipv6.conf.default.accept_redirects is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.5 | PATCH | Ensure net.ipv6.conf.default.accept_redirects is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"
+
+- name: "3.3.2.6 | PATCH | Ensure net.ipv6.conf.all.accept_source_route is configured"
+  when:
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_6
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.6
+  block:
+    - name: "3.3.2.6 | PATCH | Ensure net.ipv6.conf.all.accept_source_route is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.6 | PATCH | Ensure net.ipv6.conf.all.accept_source_route is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"
+
+- name: "3.3.2.7 | PATCH | Ensure net.ipv6.conf.default.accept_source_route is configured"
+  when:
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_7
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.7
+  block:
+    - name: "3.3.2.7 | PATCH | Ensure net.ipv6.conf.default.accept_source_route is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.7 | PATCH | Ensure net.ipv6.conf.default.accept_source_route is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"
+
+- name: "3.3.2.8 | PATCH | Ensure net.ipv6.conf.all.accept_ra is configured"
+  when:
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_8
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.8
+  block:
+    - name: "3.3.2.8 | PATCH | Ensure net.ipv6.conf.all.accept_ra is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.8 | PATCH | Ensure net.ipv6.conf.all.accept_ra is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"
+
+- name: "3.3.2.9 | PATCH | Ensure net.ipv6.conf.default.accept_ra is configured"
+  when:
+    - amzn2027cis_ipv6_required
+    - amzn2027cis_rule_3_3_2_9
+  tags:
+    - level1-server
+    - automated
+    - sysctl
+    - patch
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_3.3.2.9
+  block:
+    - name: "3.3.2.9 | PATCH | Ensure net.ipv6.conf.default.accept_ra is configured | Set Fact"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+        amzn2027cis_flush_ipv6_route: true
+
+    - name: "3.3.2.9 | PATCH | Ensure net.ipv6.conf.default.accept_ra is configured | Message out implementation info"
+      ansible.builtin.debug:
+        msg: "Control being set via post task 'Update sysctl' which writes to /etc/sysctl.d/60-netipv6_sysctl.conf"

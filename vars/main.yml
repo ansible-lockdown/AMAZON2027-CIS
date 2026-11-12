@@ -1,0 +1,172 @@
+---
+
+# vars file for AMAZON2027-CIS
+
+# Set default value for reboot value
+change_requires_reboot: false
+
+min_ansible_version: 2.21.0
+amzn2027cis_allowed_crypto_policies:
+  - 'DEFAULT'
+  - 'FUTURE'
+  - 'FIPS'
+
+# Following is left blank for ability to build string
+amzn2027cis_crypto_policy_module: ''
+
+# Do not adjust these are recognized as part of the CIS benchmark and used during testing
+amzn2027cis_allowed_crypto_policies_modules:
+  # Recognized by CIS as possible extra options
+  - 'OSPP'
+  - 'AD-SUPPORT'
+  - 'AD-SUPPORT-LEGACY'
+  # Amazon Linux 2027: disables ML-KEM/ML-DSA, conflicts with 1.6.7 (Level 2)
+  - 'NO-PQ'
+  # The following are already included in 1.6.x controls
+  - 'PQ'
+  - 'NO-SHA1'
+  - 'NO-SSHCBC'
+  - 'NO-SSHETM'
+  - 'NO-SSHWEAKCIPHER'
+  - 'NO-SSHWEAKMAC'
+  - 'NO-WEAKMAC'
+
+# Ability to change the default shell
+# Note this can change how some of the ansible.builtin.shell tasks work and may require adjustments to args.executable for those tasks
+# Used mainly for overriding to use a more POSIX compliant shell such as dash or ash when running in a container environment
+amzn2027cis_shell_executable: /bin/bash
+
+# Used to control warning summary
+warn_control_list: ""
+warn_count: 0
+
+# list of dicts of interactive users, filled in during prelim.yml
+prelim_interactive_users: []
+
+# Default empty values for 1.4.2
+efi_mount_opts_addition: ''
+
+# Amazon Linux ships the release key in system-release, there is no <distribution>-gpg-keys package
+gpg_key_package: system-release
+
+## Controls 6.2.3.x - Audit template
+# This variable is set to true by tasks 6.2.3.1 to 6.2.3.36. As a result, the
+# audit settings are overwritten with the role's template. In order to exclude
+# specific rules, you must set the variable of form `amzn2027cis_rule_6_2_3_x` above
+# to `false`.
+update_audit_template: false
+
+# Defaults
+## Usage on containerized images
+# The role discovers dynamically (in tasks/main.yml) whether it
+# is executed on a container image and sets the variable
+# system_is_container the true. Otherwise, the default value
+# 'false' is left unchanged.
+system_is_container: false
+
+# amzn2027cis is left off the front of this var for consistency in testing pipeline
+# system_is_ec2 toggle will disable tasks that fail on Amazon EC2 instances. Set true to skip and false to run tasks
+system_is_ec2: false
+
+# Aide Packages
+
+aide_packages:
+  - aide
+# Aide initiate command for new DB creation
+aide_initiate_command: /usr/bin/aide --init
+
+# Audit vars
+# Amazon Linux 2027 merges /usr/sbin into /usr/bin and audit 4.x no longer ships autrace
+audit_bins:
+  - /usr/bin/auditctl
+  - /usr/bin/aureport
+  - /usr/bin/ausearch
+  - /usr/bin/auditd
+  - /usr/bin/augenrules
+
+company_title: 'MindPoint Group - A Quantum Sky Company'
+
+file_managed_by_ansible: |-
+  # File managed by ansible as part of {{ benchmark }} benchmark
+  # As part of Ansible-lockdown
+  # Provided by {{ company_title }}
+
+# Packages and service 2.1.x
+#
+avahi_pkgs:
+  - avahi-autoipd
+  - avahi
+
+avahi_services:
+  - avahi-daemon.socket
+  - avahi-daemon.service
+
+dns_pkgs:
+  - bind
+dns_services:
+  - named.service
+
+dnsmasq_pkgs:
+  - dnsmasq
+dnsmasq_services:
+  - dnsmasq.service
+
+samba_pkgs:
+  - samba
+samba_services:
+  - smb.service
+
+vsftpd_pkgs:
+  - vsftpd
+vsftpd_services:
+  - vsftpd.service
+
+message_pkgs:
+  - dovecot
+message_services:
+  - dovecot.socket
+  - dovecot.service
+
+nfs_pkgs:
+  - nfs-utils
+nfs_services:
+  - nfs-server.service
+
+print_pkgs:
+  - cups
+print_services:
+  - cups.service
+  - cups.socket
+
+rpcbind_pkgs:
+  - rpcbind
+rpcbind_services:
+  - rpcbind.service
+  - rpcbind.socket
+
+rsync_pkgs:
+  - rsync-daemon
+rsync_services:
+  - rsyncd.service
+  - rsyncd.socket
+
+snmp_pkgs:
+  - net-snmp
+snmp_services:
+  - snmpd.service
+
+telnet_pkgs:
+  - telnet-server
+telnet_services:
+  - telnet.socket
+
+tftp_pkgs:
+  - tftp-server
+tftp_services:
+  - tftp.service
+  - tftp.socket
+
+proxy_pkgs:
+  - squid
+proxy_services:
+  - squid.service

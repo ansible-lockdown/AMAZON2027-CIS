@@ -1,0 +1,209 @@
+---
+
+- name: "1.6.1 | PATCH | Ensure system wide crypto policy is not legacy"
+  when:
+    - amzn2027cis_rule_1_6_1
+    - amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - crypto
+    - rule_1.6.1
+    - NIST800-53R5_SC-6
+  ansible.builtin.debug:
+    msg: "Captured in prelim to ensure not LEGACY. Runs handler to update"
+  changed_when: prelim_system_wide_crypto_policy.stdout.split(':')[0] != amzn2027cis_crypto_policy
+  notify:
+    - Update Crypto Policy
+    - Set Crypto Policy
+
+- name: "1.6.2 | PATCH | Ensure system wide crypto policy disables sha1 hash and signature support | Add submodule exclusion"
+  when:
+    - amzn2027cis_rule_1_6_2
+    - "'NO-SHA1' not in amzn2027cis_crypto_policy_module"
+    - amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - crypto
+    - rule_1.6.2
+    - NIST800-53R5_SC-6
+  block:
+    - name: "1.6.2 | PATCH | Ensure system wide crypto policy disables sha1 hash and signature support"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-SHA1.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-SHA1.pmod
+        owner: root
+        group: root
+        mode: 'g-wx,o-rwx'
+      register: discovered_no_sha1_template
+
+    - name: "1.6.2 | PATCH | Ensure system wide crypto policy disables sha1 hash and signature support | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        amzn2027cis_crypto_policy_module: "{{ amzn2027cis_crypto_policy_module + ':' + 'NO-SHA1' }}"
+      changed_when: discovered_no_sha1_template is changed or 'NO-SHA1' not in prelim_system_wide_crypto_policy.stdout.split(':')  # noqa: no-handler
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+- name: "1.6.3 | PATCH | Ensure system wide crypto policy macs are configured"
+  when:
+    - amzn2027cis_rule_1_6_3
+    - "'NO-WEAKMAC' not in amzn2027cis_crypto_policy_module"
+    - amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - crypto
+    - NIST800-53R5_CM-6
+    - rule_1.6.3
+  block:
+    - name: "1.6.3 | PATCH | Ensure system wide crypto policy macs are configured | Add submodule exclusion"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-WEAKMAC.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-WEAKMAC.pmod
+        owner: root
+        group: root
+        mode: 'g-wx,o-rwx'
+      register: discovered_no_weakmac_template
+
+    - name: "1.6.3 | PATCH | Ensure system wide crypto policy macs are configured | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        amzn2027cis_crypto_policy_module: "{{ amzn2027cis_crypto_policy_module + ':' + 'NO-WEAKMAC' }}"
+      changed_when: discovered_no_weakmac_template is changed or 'NO-WEAKMAC' not in prelim_system_wide_crypto_policy.stdout.split(':')  # noqa: no-handler
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+- name: "1.6.4 | PATCH | Ensure system wide crypto policy disables cbc for ssh"
+  when:
+    - amzn2027cis_rule_1_6_4
+    - "'NO-SSHCBC' not in amzn2027cis_crypto_policy_module"
+    - amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - crypto
+    - rule_1.6.4
+    - NIST800-53R5_SC-6
+  block:
+    - name: "1.6.4 | PATCH | Ensure system wide crypto policy disables cbc for ssh | Add submodule exclusion"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-SSHCBC.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-SSHCBC.pmod
+        owner: root
+        group: root
+        mode: 'g-wx,o-rwx'
+      register: discovered_no_sshcbc_template
+
+    - name: "1.6.4 | PATCH | Ensure system wide crypto policy disables cbc for ssh | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        amzn2027cis_crypto_policy_module: "{{ amzn2027cis_crypto_policy_module + ':' + 'NO-SSHCBC' }}"
+      changed_when: discovered_no_sshcbc_template is changed or 'NO-SSHCBC' not in prelim_system_wide_crypto_policy.stdout.split(':')  # noqa: no-handler
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+- name: "1.6.5 | PATCH | Ensure system wide crypto policy disables chacha20- poly1305 for ssh"
+  when:
+    - amzn2027cis_rule_1_6_5
+    - "'NO-SSHWEAKCIPHERS' not in amzn2027cis_crypto_policy_module"
+    - amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level1-server
+    - manual
+    - patch
+    - crypto
+    - rule_1.6.5
+    - NIST800-53R5_SC-6
+  block:
+    - name: "1.6.5 | PATCH | Ensure system wide crypto policy disables chacha20- poly1305 for ssh | Add submodule exclusion"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-SSHWEAKCIPHERS.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-SSHWEAKCIPHERS.pmod
+        owner: root
+        group: root
+        mode: 'g-wx,o-rwx'
+      register: discovered_no_sshweakciphers_template
+
+    - name: "1.6.5 | PATCH | Ensure system wide crypto policy disables chacha20- poly1305 for ssh | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        amzn2027cis_crypto_policy_module: "{{ amzn2027cis_crypto_policy_module + ':' + 'NO-SSHWEAKCIPHERS' }}"
+      changed_when: discovered_no_sshweakciphers_template is changed or 'NO-SSHWEAKCIPHERS' not in prelim_system_wide_crypto_policy.stdout.split(':')  # noqa: no-handler
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+- name: "1.6.6 | PATCH | Ensure system wide crypto policy disables EtM for ssh"
+  when:
+    - amzn2027cis_rule_1_6_6
+    - "'NO-SSHETM' not in amzn2027cis_crypto_policy_module"
+    - amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level1-server
+    - manual
+    - patch
+    - crypto
+    - rule_1.6.6
+    - NIST800-53R5_SC-6
+  block:
+    - name: "1.6.6 | PATCH | Ensure system wide crypto policy disables EtM for ssh | Add submodule exclusion"
+      ansible.builtin.template:
+        src: etc/crypto-policies/policies/modules/NO-SSHETM.pmod.j2
+        dest: /etc/crypto-policies/policies/modules/NO-SSHETM.pmod
+        owner: root
+        group: root
+        mode: 'g-wx,o-rwx'
+      register: discovered_no_sshetm_template
+
+    - name: "1.6.6 | PATCH | Ensure system wide crypto policy disables EtM for ssh | submodule to crypto policy modules"
+      ansible.builtin.set_fact:
+        amzn2027cis_crypto_policy_module: "{{ amzn2027cis_crypto_policy_module + ':' + 'NO-SSHETM' }}"
+      changed_when: discovered_no_sshetm_template is changed or 'NO-SSHETM' not in prelim_system_wide_crypto_policy.stdout.split(':')  # noqa: no-handler
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+- name: "1.6.7 | PATCH | Ensure system wide crypto policy enables post-quantum algorithms"
+  when:
+    - amzn2027cis_rule_1_6_7
+    - "'PQ' not in amzn2027cis_crypto_policy_module"
+    - amzn2027cis_crypto_policy_ansiblemanaged
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - crypto
+    - rule_1.6.7
+    - NIST800-53R5_SC-13
+  block:
+    - name: "1.6.7 | AUDIT | Ensure system wide crypto policy enables post-quantum algorithms | Check PQ subpolicy is available"
+      ansible.builtin.stat:
+        path: /usr/share/crypto-policies/policies/modules/PQ.pmod
+      register: discovered_crypto_pq_module
+
+    - name: "1.6.7 | PATCH | Ensure system wide crypto policy enables post-quantum algorithms | submodule to crypto policy modules"
+      when: discovered_crypto_pq_module.stat.exists
+      ansible.builtin.set_fact:
+        amzn2027cis_crypto_policy_module: "{{ amzn2027cis_crypto_policy_module + ':' + 'PQ' }}"
+      changed_when: "'PQ' not in prelim_system_wide_crypto_policy.stdout.split(':')"
+      notify:
+        - Update Crypto Policy
+        - Set Crypto Policy
+
+    - name: "1.6.7 | AUDIT | Ensure system wide crypto policy enables post-quantum algorithms | Warn if NO-PQ subpolicy is requested"
+      when: "'NO-PQ' in amzn2027cis_additional_crypto_policy_module.split(':')"
+      block:
+        - name: "1.6.7 | AUDIT | Ensure system wide crypto policy enables post-quantum algorithms | Warn if NO-PQ subpolicy is requested | Message"
+          ansible.builtin.debug:
+            msg: "Warning!! amzn2027cis_additional_crypto_policy_module includes NO-PQ, which removes the ML-KEM and ML-DSA algorithms the base policy enables. Remove NO-PQ to conform to 1.6.7"
+
+        - name: "1.6.7 | AUDIT | Ensure system wide crypto policy enables post-quantum algorithms | Warn if NO-PQ subpolicy is requested | Warn count"
+          ansible.builtin.import_tasks:
+            file: warning_facts.yml
+          vars:
+            warn_control_id: '1.6.7'

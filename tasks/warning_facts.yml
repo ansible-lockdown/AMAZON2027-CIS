@@ -1,0 +1,6 @@
+---
+
+- name: "{{ warn_control_id }} | AUDIT | Set fact for manual task warning."  # noqa name[template]
+  ansible.builtin.set_fact:
+    warn_control_list: "{{ warn_control_list }} [{{ warn_control_id }}]"
+    warn_count: "{{ warn_count | int + 1 }}"

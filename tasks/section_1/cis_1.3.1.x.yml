@@ -1,0 +1,189 @@
+---
+
+- name: "1.3.1.1 | PATCH | Ensure SELinux is installed"
+  when:
+    - amzn2027cis_rule_1_3_1_1
+    - not amzn2027cis_selinux_disable
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rule_1.3.1.1
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.package:
+    name: libselinux
+    state: present
+
+- name: "1.3.1.2 | PATCH | Ensure SELinux is not disabled in bootloader configuration"
+  when:
+    - amzn2027cis_rule_1_3_1_2
+    - not amzn2027cis_selinux_disable
+  tags:
+    - level1-server
+    - automated
+    - scored
+    - patch
+    - rule_1.3.1.2
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "1.3.1.2 | AUDIT | Ensure SELinux is not disabled in bootloader configuration | Boot entries"
+      when: not system_is_container
+      ansible.builtin.shell: |
+        set -o pipefail
+        grubby --info=ALL | grep -Po '(selinux|enforcing)=0\b'
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_grubby_selinux_disabled.rc not in [ 0, 1 ]
+      register: discovered_grubby_selinux_disabled
+
+    - name: "1.3.1.2 | PATCH | Ensure SELinux is not disabled in bootloader configuration | Remove from boot entries"
+      when:
+        - not system_is_container
+        - discovered_grubby_selinux_disabled.stdout | length > 0
+      ansible.builtin.command: grubby --update-kernel ALL --remove-args "selinux=0 enforcing=0"
+      changed_when: true
+
+    - name: "1.3.1.2 | PATCH | Ensure SELinux is not disabled in bootloader configuration | Remove from default grub"
+      when: not system_is_container
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX(?:_DEFAULT)?=.*?)[ \t]*\b{{ item }}=0\b(.*)$'
+        replace: '\1\2'
+      loop:
+        - selinux
+        - enforcing
+      notify: Grub2cfg
+
+    - name: "1.3.1.2 | AUDIT | Ensure SELinux is not disabled in bootloader configuration | Check kernel cmdline file"
+      ansible.builtin.stat:
+        path: /etc/kernel/cmdline
+      register: discovered_selinux_kernel_cmdline_file
+
+    - name: "1.3.1.2 | PATCH | Ensure SELinux is not disabled in bootloader configuration | Remove from kernel cmdline file"
+      when: discovered_selinux_kernel_cmdline_file.stat.exists
+      ansible.builtin.replace:
+        path: /etc/kernel/cmdline
+        regexp: '[ \t]*\b(selinux|enforcing)=0\b'
+        replace: ''
+
+- name: "1.3.1.3 | PATCH | Ensure SELinux policy is configured"
+  when:
+    - amzn2027cis_rule_1_3_1_3
+    - not amzn2027cis_selinux_disable
+  tags:
+    - level1-server
+    - automated
+    - selinux
+    - patch
+    - rule_1.3.1.3
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.posix.selinux:
+    conf: /etc/selinux/config
+    policy: "{{ amzn2027cis_selinux_pol }}"
+    state: "{{ amzn2027cis_selinux_enforce }}"
+
+- name: "1.3.1.4 | PATCH | Ensure the SELinux mode is not disabled"
+  when:
+    - amzn2027cis_rule_1_3_1_4
+    - not amzn2027cis_selinux_disable
+  tags:
+    - level1-server
+    - automated
+    - selinux
+    - patch
+    - NIST800-53R5_SC-3
+    - rule_1.3.1.4
+  ansible.posix.selinux:
+    conf: /etc/selinux/config
+    policy: "{{ amzn2027cis_selinux_pol }}"
+    state: "{{ amzn2027cis_selinux_enforce }}"
+
+- name: "1.3.1.5 | PATCH | Ensure the SELinux mode is enforcing"
+  when:
+    - amzn2027cis_selinux_enforce == 'enforcing'
+    - amzn2027cis_rule_1_3_1_5
+    - not amzn2027cis_selinux_disable
+  tags:
+    - level2-server
+    - automated
+    - selinux
+    - patch
+    - CCI-001084
+    - CCI-002696
+    - NIST800-53R5_SC-3
+    - NIST800-53R5_SI-6
+    - rule_1.3.1.5
+  ansible.posix.selinux:
+    conf: /etc/selinux/config
+    policy: "{{ amzn2027cis_selinux_pol }}"
+    state: enforcing
+
+- name: "1.3.1.6 | AUDIT | Ensure no unconfined services exist"
+  when:
+    - amzn2027cis_rule_1_3_1_6
+    - not amzn2027cis_selinux_disable
+  tags:
+    - level2-server
+    - manual
+    - audit
+    - services
+    - rule_1.3.1.6
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "1.3.1.6 | AUDIT | Ensure no unconfined services exist | Find the unconfined services"
+      ansible.builtin.shell: |
+        set -o pipefail
+        ps -eZ | grep unconfined_service_t | grep -Evw "tr|ps|egrep|bash|awk" | tr ':' ' ' | awk '{ print $NF }'
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      failed_when: false
+      changed_when: false
+      check_mode: false
+      register: discovered_unconf_services
+
+    - name: "1.3.1.6 | AUDIT | Ensure no unconfined services exist | Message on unconfined services"
+      when: discovered_unconf_services.stdout | length > 0
+      ansible.builtin.debug:
+        msg: "Warning!! You have unconfined services: {{ discovered_unconf_services.stdout_lines }}"
+
+    - name: "1.3.1.6 | AUDIT | Ensure no unconfined services exist | warning count"
+      when: discovered_unconf_services.stdout | length > 0
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '1.3.1.6'
+
+- name: "1.3.1.7 | PATCH | Ensure the MCS Translation Service (mcstrans) is not installed"
+  when: amzn2027cis_rule_1_3_1_7
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rule_1.3.1.7
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.package:
+    name: mcstrans
+    state: absent
+
+- name: "1.3.1.8 | PATCH | Ensure SETroubleshoot is not installed"
+  when:
+    - amzn2027cis_rule_1_3_1_8
+    - "'setroubleshoot' in ansible_facts['packages']"
+  tags:
+    - level1-server
+    - automated
+    - selinux
+    - patch
+    - rule_1.3.1.8
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.package:
+    name: setroubleshoot
+    state: absent

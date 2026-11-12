@@ -1,0 +1,55 @@
+---
+
+- name: "POST | AUDITD | Set supported_syscalls variable"
+  ansible.builtin.shell: |
+    set -o pipefail
+    ausyscall --dump |  awk  '{print $2}'
+  args:
+    executable: "{{ amzn2027cis_shell_executable }}"
+  changed_when: false
+  check_mode: false
+  failed_when: discovered_auditd_syscalls.rc not in [ 0, 1 ]
+  register: discovered_auditd_syscalls
+
+- name: "POST | AUDITD | Discover directories watched by the 6.2.3.x rules"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /etc/sudoers.d
+    - /etc/NetworkManager/system-connections
+    - /etc/systemd/network
+    - /etc/pam.d
+    - /var/run/faillock
+    - /etc/selinux
+    - /usr/share/selinux
+    - /var/lib/selinux
+  register: discovered_auditd_watch_dirs
+
+- name: "POST | AUDITD | Apply auditd template for section 6.2.3.x"
+  when: update_audit_template
+  ansible.builtin.template:
+    src: audit/99_auditd.rules.j2
+    dest: /etc/audit/rules.d/99_auditd.rules
+    owner: root
+    group: root
+    mode: 'u-x,g-wx,o-rwx'
+  vars:
+    supported_syscalls: "{{ discovered_auditd_syscalls.stdout_lines }}"
+    audit_watch_dirs: "{{ discovered_auditd_watch_dirs.results | selectattr('stat.exists') | selectattr('stat.isdir') | map(attribute='item') | list }}"
+  notify:
+    - Auditd rules reload
+    - Audit immutable fact
+    - Restart auditd
+
+- name: POST | AUDITD | Set up auditd user logging exceptions
+  when: amzn2027cis_allow_auditd_uid_user_exclusions
+  ansible.builtin.template:
+    src: audit/98_auditd_exception.rules.j2
+    dest: /etc/audit/rules.d/98_auditd_exceptions.rules
+    owner: root
+    group: root
+    mode: 'u-x,go-rwx'
+  notify: Restart auditd
+
+- name: POST | AUDITD | Flush handlers
+  ansible.builtin.meta: flush_handlers

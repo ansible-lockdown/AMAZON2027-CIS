@@ -1,0 +1,197 @@
+---
+
+- name: "1.4.1 | PATCH | Ensure bootloader password is set"
+  when:
+    - amzn2027cis_set_boot_pass
+    - amzn2027cis_rule_1_4_1
+  tags:
+    - level2-server
+    - automated
+    - grub
+    - patch
+    - rule_1.4.1
+    - NIST800-53R5_AC-3
+  block:
+    - name: "1.4.1 | PATCH | Ensure bootloader password is set | Set fact if using salt (no python passlib required)"
+      when: amzn2027cis_bootloader_salt | length == 0
+      ansible.builtin.set_fact:
+        amzn2027cis_compiled_bootloader_password: "{{ amzn2027cis_bootloader_password_hash }}"
+
+    - name: "1.4.1 | PATCH | Ensure bootloader password is set | Set fact if using salt (python passlib required)"
+      when: amzn2027cis_bootloader_salt | length > 0
+      ansible.builtin.set_fact:
+        amzn2027cis_compiled_bootloader_password: "{{ (amzn2027cis_bootloader_password | grub_hash(salt=amzn2027cis_bootloader_salt)) }}" # noqa template-instead-of-copy
+
+    - name: "1.4.1 | PATCH | Ensure bootloader password is set"
+      ansible.builtin.copy:
+        dest: /boot/grub2/user.cfg
+        content: "GRUB2_PASSWORD={{ amzn2027cis_compiled_bootloader_password }}" # noqa template-instead-of-copy
+        owner: root
+        group: root
+        mode: 'go-rwx'
+      notify: Grub2cfg
+
+- name: "1.4.2 | PATCH | Ensure access to bootloader config is configured"
+  when: amzn2027cis_rule_1_4_2
+  tags:
+    - level2-server
+    - automated
+    - grub
+    - patch
+    - NIST800-53R5_CM-6
+    - rule_1.4.2
+  block:
+    - name: "1.4.2 | AUDIT | Ensure access to bootloader config is configured | grub2 files"
+      ansible.builtin.stat:
+        path: "/boot/grub2/{{ item }}"
+      loop:
+        - grub.cfg
+        - grubenv
+        - user.cfg
+      register: discovered_grub2_files
+
+    - name: "1.4.2 | PATCH | Ensure access to bootloader config is configured | grub2 files"
+      when: item.stat.exists
+      ansible.builtin.file:
+        path: "{{ item.stat.path }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+      loop: "{{ discovered_grub2_files.results }}"
+
+    - name: "1.4.2 | AUDIT | Ensure access to bootloader config is configured | efi mount options"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep "^[^#;]" /etc/fstab | grep '/boot/efi' | awk -F" " '{print $4}'
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      failed_when: discovered_efi_fstab.rc not in [ 0, 1 ]
+      check_mode: false
+      register: discovered_efi_fstab
+
+    - name: "1.4.2 | PATCH | Ensure access to bootloader config is configured | efi mount options | Build Options"
+      when:
+        - discovered_efi_fstab.stdout | length > 0
+        - item not in discovered_efi_fstab.stdout
+      ansible.builtin.set_fact:
+        efi_mount_opts_addition: "{{ efi_mount_opts_addition + ',' + item }}"
+      vars:
+        efi_mount_options: ['umask=0077', 'fmask=0077', 'uid=0', 'gid=0']
+      loop: "{{ efi_mount_options }}"
+
+    - name: "1.4.2 | PATCH | Ensure access to bootloader config is configured | efi mount options | Add mount options"
+      when:
+        - discovered_efi_fstab.stdout | length > 0
+        - efi_mount_opts_addition | length > 0
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: (.*/boot/efi\s*\w*\s*){{ discovered_efi_fstab.stdout }}(.*)
+        line: \1{{ discovered_efi_fstab.stdout + efi_mount_opts_addition }}\2
+        backrefs: true
+      notify: Remount /boot/efi
+
+- name: "1.4.3 | PATCH | Ensure authentication is required when booting into rescue mode"
+  when: amzn2027cis_rule_1_4_3
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - systemd
+    - rule_1.4.3
+    - NIST800-53R5_AC-3
+  block:
+    - name: "1.4.3 | PATCH | Ensure authentication is required when booting into rescue mode | Drop-in directory"
+      ansible.builtin.file:
+        path: /etc/systemd/system/rescue.service.d
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.4.3 | PATCH | Ensure authentication is required when booting into rescue mode | Require sulogin"
+      ansible.builtin.template:
+        src: etc/systemd/system/sulogin/00-require-auth.conf.j2
+        dest: /etc/systemd/system/rescue.service.d/00-require-auth.conf
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      vars:
+        sulogin_target: rescue
+      notify: Systemd daemon reload
+
+- name: "1.4.4 | PATCH | Ensure authentication is required when booting into emergency mode"
+  when: amzn2027cis_rule_1_4_4
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - systemd
+    - rule_1.4.4
+    - NIST800-53R5_AC-3
+  block:
+    - name: "1.4.4 | PATCH | Ensure authentication is required when booting into emergency mode | Drop-in directory"
+      ansible.builtin.file:
+        path: /etc/systemd/system/emergency.service.d
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.4.4 | PATCH | Ensure authentication is required when booting into emergency mode | Require sulogin"
+      ansible.builtin.template:
+        src: etc/systemd/system/sulogin/00-require-auth.conf.j2
+        dest: /etc/systemd/system/emergency.service.d/00-require-auth.conf
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      vars:
+        sulogin_target: emergency
+      notify: Systemd daemon reload
+
+- name: "1.4.5 | PATCH | Ensure systemd ability to spawn an interactive boot process is disabled"
+  when:
+    - amzn2027cis_rule_1_4_5
+    - not system_is_container
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - grub
+    - rule_1.4.5
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.4.5 | AUDIT | Ensure systemd ability to spawn an interactive boot process is disabled | Boot entries with confirm_spawn"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grubby --info=ALL | grep -E '^\s*args=' | grep -c 'systemd.confirm_spawn'
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_grubby_confirm_spawn.rc not in [ 0, 1 ]
+      register: discovered_grubby_confirm_spawn
+
+    - name: "1.4.5 | PATCH | Ensure systemd ability to spawn an interactive boot process is disabled | Remove from boot entries"
+      when: discovered_grubby_confirm_spawn.stdout | int > 0
+      ansible.builtin.command: grubby --update-kernel=ALL --remove-args=systemd.confirm_spawn
+      changed_when: true
+
+    - name: "1.4.5 | PATCH | Ensure systemd ability to spawn an interactive boot process is disabled | Remove from default grub"
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(GRUB_CMDLINE_LINUX(?:_DEFAULT)?=.*?)[ \t]*\bsystemd\.confirm_spawn(?:=[^\s"]*)?(.*)$'
+        replace: '\1\2'
+      notify: Grub2cfg
+
+    - name: "1.4.5 | AUDIT | Ensure systemd ability to spawn an interactive boot process is disabled | Check kernel cmdline file"
+      ansible.builtin.stat:
+        path: /etc/kernel/cmdline
+      register: discovered_kernel_cmdline_file
+
+    - name: "1.4.5 | PATCH | Ensure systemd ability to spawn an interactive boot process is disabled | Remove from kernel cmdline file"
+      when: discovered_kernel_cmdline_file.stat.exists
+      ansible.builtin.replace:
+        path: /etc/kernel/cmdline
+        regexp: '[ \t]*\bsystemd\.confirm_spawn(?:=\S*)?'
+        replace: ''

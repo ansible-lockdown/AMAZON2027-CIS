@@ -1,0 +1,129 @@
+---
+
+- name: "5.3.3.1.1 | PATCH | Ensure password failed attempts lockout is configured"
+  when: amzn2027cis_rule_5_3_3_1_1
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - pam
+    - rule_5.3.3.1.1
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.3.1.1 | PATCH | Ensure password failed attempts lockout is configured | faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        state: present
+        regexp: '^(#|)\s*deny\s*=\s*\d'
+        line: "deny = {{ amzn2027cis_pam_faillock_deny }}"
+
+    - name: "5.3.3.1.1 | PATCH | Ensure password failed attempts lockout is configured | remove deny from pam files NOT AuthSelect"
+      when:
+        - not amzn2027cis_allow_authselect_updates
+        - amzn2027cis_disruption_high
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*auth\s+(?:requisite|required|sufficient)\s+pam_faillock\.so\b.*?)\s+deny\s*=\s*\S+(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+
+    - name: "5.3.3.1.1 | PATCH | Ensure password failed attempts lockout is configured | remove deny from AuthSelect config"
+      when:
+        - amzn2027cis_allow_authselect_updates
+        - amzn2027cis_disruption_high
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item }}-auth"
+        regexp: ^(\s*auth\s+(?:requisite|required|sufficient)\s+pam_faillock\.so\b.*?)\s+deny\s*=\s*\S+(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+      notify: Authselect update
+
+- name: "5.3.3.1.2 | PATCH | Ensure password unlock time is configured"
+  when: amzn2027cis_rule_5_3_3_1_2
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - pam
+    - rule_5.3.3.1.2
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.3.1.2 | PATCH | Ensure password unlock time is configured | faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        state: present
+        regexp: '^(#|)\s*unlock_time\s*=\s*\d'
+        line: "unlock_time = {{ amzn2027cis_pam_faillock_unlock_time }}"
+
+    - name: "5.3.3.1.2 | PATCH | Ensure password unlock time is configured | remove unlock from pam files NOT AuthSelect"
+      when:
+        - amzn2027cis_disruption_high
+        - not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*auth\s+(?:requisite|required|sufficient)\s+pam_faillock\.so\b.*?)\s+unlock_time\s*=\s*\S+(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+
+    - name: "5.3.3.1.2 | PATCH | Ensure password unlock time is configured | remove unlock from pam files AuthSelect"
+      when:
+        - amzn2027cis_allow_authselect_updates
+        - amzn2027cis_disruption_high
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item }}-auth"
+        regexp: ^(\s*auth\s+(?:requisite|required|sufficient)\s+pam_faillock\.so\b.*?)\s+unlock_time\s*=\s*\S+(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+      notify: Authselect update
+
+- name: "5.3.3.1.3 | PATCH | Ensure password failed attempts lockout includes root account"
+  when: amzn2027cis_rule_5_3_3_1_3
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - pam
+    - rule_5.3.3.1.3
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.3.1.3 | PATCH | Ensure password failed attempts lockout includes root account | configure faillock.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^{{ amzn2027cis_pamroot_lock_option }}'
+        line: "{{ amzn2027cis_pamroot_lock_option }}"
+        insertafter: '^# end of pam-auth-update config'
+        create: true
+        mode: 'u-x,go-wx'
+
+    - name: "5.3.3.1.3 | PATCH | Ensure password failed attempts lockout includes root account | remove lockout from pam files NOT AuthSelect"
+      when:
+        - amzn2027cis_disruption_high
+        - not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*auth\s+(?:requisite|required|sufficient)\s+pam_faillock\.so\b.*?)\s+(?:even_deny_root|root_unlock_time\s*=\s*\S+)(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+
+    - name: "5.3.3.1.3 | PATCH | Ensure password failed attempts lockout includes root account | remove lockout from pam files AuthSelect"
+      when:
+        - amzn2027cis_allow_authselect_updates
+        - amzn2027cis_disruption_high
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item }}-auth"
+        regexp: ^(\s*auth\s+(?:requisite|required|sufficient)\s+pam_faillock\.so\b.*?)\s+(?:even_deny_root|root_unlock_time\s*=\s*\S+)(.*)$
+        replace: \1\2
+      loop:
+        - password
+        - system
+      notify: Authselect update

@@ -1,0 +1,85 @@
+---
+
+- name: "5.4.3.1 | PATCH | Ensure nologin is not listed in /etc/shells"
+  when: amzn2027cis_rule_5_4_3_1
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - shells
+    - rule_5.4.3.1
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-2
+    - NIST800-53R5_CM-6
+    - NIST800-53R5_CM-7
+    - NIST800-53R5_IA-5
+  ansible.builtin.replace:
+    path: /etc/shells
+    regexp: nologin
+    replace: ""
+
+- name: "5.4.3.2 | PATCH | Ensure default user shell timeout is configured"
+  when: amzn2027cis_rule_5_4_3_2
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - shell
+    - rule_5.4.3.2
+    - NIST800-53R5_AC-12
+  ansible.builtin.blockinfile:
+    path: "{{ item.path }}"
+    state: "{{ item.state }}"
+    marker: "# {mark} - CIS benchmark - Ansible-lockdown"
+    create: true
+    mode: 'go-wx'
+    block: |
+      TMOUT={{ amzn2027cis_shell_session_timeout }}
+      readonly TMOUT
+      export TMOUT
+  loop:
+    - { path: "{{ amzn2027cis_shell_session_file }}", state: present }
+    - { path: /etc/profile, state: "{{ (amzn2027cis_shell_session_file == '/etc/profile') | ternary('present', 'absent') }}" }
+
+- name: "5.4.3.3 | PATCH | Ensure default user umask is configured in /etc/login.defs"
+  when: amzn2027cis_rule_5_4_3_3
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - umask
+    - NIST800-53R5_CM-6
+    - rule_5.4.3.3
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^\s*UMASK\s+'
+    line: "UMASK {{ amzn2027cis_bash_umask }}"
+
+- name: "5.4.3.4 | PATCH | Ensure default user umask is configured"
+  when: amzn2027cis_rule_5_4_3_4
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - umask
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_5.4.3.4
+  block:
+    - name: "5.4.3.4 | AUDIT | Ensure default user umask is configured | Find shell initialization files setting umask"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -lPsi -- '^\h*umask\h+\S' /etc/profile /etc/bashrc /etc/bash.bashrc /etc/profile.d/sh.local /etc/profile.d/*.sh
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_umask_files.rc not in [ 0, 1, 2 ]
+      register: discovered_umask_files
+
+    - name: "5.4.3.4 | PATCH | Ensure default user umask is configured | Tighten weak umask statements"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '(?i)^(\s*umask\s+)(?!0?[0-7][2367]7\b)[^\s#;]+'
+        replace: '\g<1>{{ amzn2027cis_bash_umask }}'
+      loop: "{{ discovered_umask_files.stdout_lines }}"

@@ -1,0 +1,6 @@
+---
+
+# OS Specific Settings
+
+os_gpg_key_pubkey_name: gpg-pubkey-37ce7c3833e5a33c4a1e4b0d5408eaa4b1e92e3d  # pragma: allowlist secret
+os_gpg_key_pubkey_content: "Amazon Linux amazon-linux@amazon.com public key"

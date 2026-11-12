@@ -1,0 +1,12 @@
+{{ file_managed_by_ansible }}
+# CIS Configurations
+# 5.3.3.2.3 Ensure password complexity is configured
+{% if amzn2027cis_passwd_complex_option == 'minclass' %}{# pragma: allowlist secret #}
+minclass = {{ amzn2027cis_passwd_minclass }}
+{% endif %}
+{% if amzn2027cis_passwd_complex_option == 'credits' %}{# pragma: allowlist secret #}
+dcredit = {{amzn2027cis_passwd_dcredit }}
+ucredit = {{ amzn2027cis_passwd_ucredit }}
+ocredit = {{ amzn2027cis_passwd_ocredit }}
+lcredit = {{ amzn2027cis_passwd_lcredit }}
+{% endif %}

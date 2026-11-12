@@ -1,0 +1,81 @@
+---
+
+- name: "2.3.1 | PATCH | Ensure time synchronization is in use"
+  when:
+    - amzn2027cis_rule_2_3_1
+    - not system_is_container
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+    - rule_2.3.1
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: "2.3.2 | PATCH | Ensure chrony is configured"
+  when:
+    - amzn2027cis_rule_2_3_2
+    - not system_is_container
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rule_2.3.2
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+  ansible.builtin.template:
+    src: etc/chrony.conf.j2
+    dest: /etc/chrony.d/chrony.conf
+    owner: root
+    group: root
+    mode: 'u-x,go-wx'
+
+- name: "2.3.3 | PATCH | Ensure chrony is not run as the root user"
+  when:
+    - amzn2027cis_rule_2_3_3
+    - not system_is_container
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rule_2.3.3
+    - NIST800-53R5_AC-6
+  block:
+    - name: "2.3.3 | PATCH | Ensure chrony is not run as the root user | Run chronyd as chrony"
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/chronyd
+        regexp: '^OPTIONS="(?!.*-u\s+chrony\b)(.*)"'
+        line: OPTIONS="\1 -u chrony"
+        create: true
+        backrefs: true
+        mode: 'go-wx'
+
+    - name: "2.3.3 | PATCH | Ensure chrony is not run as the root user | Remove -u root from OPTIONS"
+      ansible.builtin.replace:
+        path: /etc/sysconfig/chronyd
+        regexp: '^(\s*OPTIONS=.*?)\s*-u\s+root\b'
+        replace: '\1'
+
+    - name: "2.3.3 | AUDIT | Ensure chrony is not run as the root user | Find user root in /etc/chrony.conf"
+      ansible.builtin.find:
+        paths: /etc
+        patterns: chrony.conf
+        contains: '^\s*user\s+root\b'
+      register: discovered_chrony_conf_user_root
+
+    - name: "2.3.3 | AUDIT | Ensure chrony is not run as the root user | Find user root in /etc/chrony.d"
+      ansible.builtin.find:
+        paths: /etc/chrony.d
+        patterns: '*.conf'
+        contains: '^\s*user\s+root\b'
+      register: discovered_chrony_d_user_root
+
+    - name: "2.3.3 | PATCH | Ensure chrony is not run as the root user | Comment out user root"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*user\s+root\b.*)$'
+        replace: '# \1'
+      loop: "{{ (discovered_chrony_conf_user_root.files + discovered_chrony_d_user_root.files) | map(attribute='path') | list }}"

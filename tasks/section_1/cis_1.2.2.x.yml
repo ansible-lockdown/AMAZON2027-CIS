@@ -1,0 +1,39 @@
+---
+
+- name: "1.2.2.1 | PATCH | Ensure updates, patches, and additional security software are installed"
+  when:
+    - amzn2027cis_rule_1_2_2_1
+    - not system_is_ec2
+  tags:
+    - level1-server
+    - manual
+    - patch
+    - rule_1.2.2.1
+    - NIST800-53R5_SI-2
+  block:
+    - name: "1.2.2.1 | PATCH | Ensure updates, patches, and additional security software are installed | Configured release"
+      ansible.builtin.package:
+        name: "*"
+        state: latest
+      notify: Set reboot required
+
+    - name: "1.2.2.1 | AUDIT | Ensure updates, patches, and additional security software are installed | Check for a newer release"
+      ansible.builtin.command: dnf check-release-update
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      register: discovered_dnf_release_update
+
+    - name: "1.2.2.1 | AUDIT | Ensure updates, patches, and additional security software are installed | Warn newer release available"
+      when: "'--releasever=' in (discovered_dnf_release_update.stdout + discovered_dnf_release_update.stderr)"
+      ansible.builtin.debug:
+        msg:
+          - "Warning!! A newer Amazon Linux release is available. Upgrade with dnf upgrade --releasever=<VERSION> to the release chosen by site policy"
+          - "{{ discovered_dnf_release_update.stderr_lines | select('search', '--releasever=') | list }}"
+
+    - name: "1.2.2.1 | AUDIT | Ensure updates, patches, and additional security software are installed | Capture warning"
+      when: "'--releasever=' in (discovered_dnf_release_update.stdout + discovered_dnf_release_update.stderr)"
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '1.2.2.1'

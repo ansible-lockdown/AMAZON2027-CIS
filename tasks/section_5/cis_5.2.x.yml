@@ -1,0 +1,338 @@
+---
+
+- name: "5.2.1 | PATCH | Ensure sudo is installed"
+  when: amzn2027cis_rule_5_2_1
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.1
+    - NIST800-53R5_AC-6
+  ansible.builtin.package:
+    name: sudo
+    state: present
+
+- name: "5.2.2 | PATCH | Ensure access on sudoers configuration files is configured"
+  when: amzn2027cis_rule_5_2_2
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - permissions
+    - rule_5.2.2
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "5.2.2 | PATCH | Ensure access on sudoers configuration files is configured | /etc/sudoers"
+      ansible.builtin.file:
+        path: /etc/sudoers
+        owner: root
+        group: root
+        mode: 'u-wx,g-wx,o-rwx'
+
+    - name: "5.2.2 | AUDIT | Ensure access on sudoers configuration files is configured | Find /etc/sudoers.d files"
+      ansible.builtin.find:
+        paths: /etc/sudoers.d
+        file_type: file
+        hidden: true
+      register: discovered_sudoers_d_files
+
+    - name: "5.2.2 | PATCH | Ensure access on sudoers configuration files is configured | /etc/sudoers.d files"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: 'u-wx,g-wx,o-rwx'
+      loop: "{{ discovered_sudoers_d_files.files }}"
+
+- name: "5.2.3 | PATCH | Ensure access on the /etc/sudoers.d directory is configured"
+  when: amzn2027cis_rule_5_2_3
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - permissions
+    - rule_5.2.3
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.file:
+    path: /etc/sudoers.d
+    state: directory
+    owner: root
+    group: root
+    mode: 'g-w,o-rwx'
+
+- name: "5.2.4 | PATCH | Ensure sudo commands use pty"
+  when: amzn2027cis_rule_5_2_4
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.4
+    - NIST800-53R5_AC-6
+  block:
+    - name: "5.2.4 | PATCH | Ensure sudo commands use pty | Set use_pty"
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: '^\s*Defaults\s+use_pty\b'
+        line: "Defaults    use_pty"
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: "5.2.4 | AUDIT | Ensure sudo commands use pty | Find files disabling use_pty"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -rlPi -- '^\h*Defaults\h+([^#\n\r]+,\h*)?!use_pty\b' /etc/sudoers /etc/sudoers.d/
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sudo_no_use_pty.rc not in [ 0, 1 ]
+      register: discovered_sudo_no_use_pty
+
+    - name: "5.2.4 | PATCH | Ensure sudo commands use pty | Remove !use_pty"
+      when: discovered_sudo_no_use_pty.stdout | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*Defaults\s+(?:[^#\n]+,\s*)?)!use_pty\b'
+        replace: '\1use_pty'
+        validate: '/usr/sbin/visudo -cf %s'
+      loop: "{{ discovered_sudo_no_use_pty.stdout_lines }}"
+
+- name: "5.2.5 | PATCH | Ensure sudo log file exists"
+  when: amzn2027cis_rule_5_2_5
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.5
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    regexp: '^\s*Defaults\s+logfile\s*='
+    line: 'Defaults    logfile="{{ amzn2027cis_sudolog_location }}"'
+    validate: '/usr/sbin/visudo -cf %s'
+
+- name: "5.2.6 | PATCH | Ensure users must provide password for escalation"
+  when: amzn2027cis_rule_5_2_6
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.6
+    - NIST800-53R5_AC-6
+  block:
+    - name: "5.2.6 | AUDIT | Ensure users must provide password for escalation | Discover accts with NOPASSWD"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Ei '(nopasswd)' /etc/sudoers /etc/sudoers.d/* | cut -d':' -f1
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      become: true
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      register: discovered_nopasswd_sudoers
+
+    - name: "5.2.6 | PATCH | Ensure users must provide password for escalation | Remove nopasswd for accounts not excluded"
+      when: discovered_nopasswd_sudoers.stdout | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^((?!{{ (["#"] + amzn2027cis_sudoers_exclude_nopasswd_list) | join("|") }}).*)NOPASSWD(.*)'
+        replace: '\1PASSWD\2'
+        validate: '/usr/sbin/visudo -cf %s'
+      loop: "{{ discovered_nopasswd_sudoers.stdout_lines }}"
+
+- name: "5.2.7 | PATCH | Ensure re-authentication for privilege escalation is not disabled globally"
+  when: amzn2027cis_rule_5_2_7
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.7
+    - NIST800-53R5_AC-6
+  block:
+    - name: "5.2.7 | AUDIT | Ensure re-authentication for privilege escalation is not disabled globally"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Ei '(!authenticate)' /etc/sudoers /etc/sudoers.d/* | cut -d':' -f1
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      become: true
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      register: discovered_priv_reauth
+
+    - name: "5.2.7 | PATCH | Ensure re-authentication for privilege escalation is not disabled globally"
+      when: discovered_priv_reauth.stdout | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([^#].*)!authenticate(.*)'
+        replace: '\1authenticate\2'
+        validate: '/usr/sbin/visudo -cf %s'
+      loop: "{{ discovered_priv_reauth.stdout_lines }}"
+
+- name: "5.2.8 | PATCH | Ensure sudo pwfeedback is configured"
+  when: amzn2027cis_rule_5_2_8
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.8
+    - NIST800-53R5_AC-6
+  block:
+    - name: "5.2.8 | AUDIT | Ensure sudo pwfeedback is configured | Find files enabling pwfeedback"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -rlPi -- '^\h*Defaults\h+([^#\n\r]+,\h*)?pwfeedback\b' /etc/sudoers /etc/sudoers.d/
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sudo_pwfeedback.rc not in [ 0, 1 ]
+      register: discovered_sudo_pwfeedback
+
+    - name: "5.2.8 | PATCH | Ensure sudo pwfeedback is configured | Disable pwfeedback"
+      when: discovered_sudo_pwfeedback.stdout | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*Defaults\s+(?:[^#\n]+,\s*)?)pwfeedback\b'
+        replace: '\1!pwfeedback'
+        validate: '/usr/sbin/visudo -cf %s'
+      loop: "{{ discovered_sudo_pwfeedback.stdout_lines }}"
+
+- name: "5.2.9 | PATCH | Ensure sudo visiblepw is configured"
+  when: amzn2027cis_rule_5_2_9
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.9
+    - NIST800-53R5_AC-6
+  block:
+    - name: "5.2.9 | AUDIT | Ensure sudo visiblepw is configured | Find files enabling visiblepw"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -rlPi -- '^\h*Defaults\h+([^#\n\r]+,\h*)?visiblepw\b' /etc/sudoers /etc/sudoers.d/
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sudo_visiblepw.rc not in [ 0, 1 ]
+      register: discovered_sudo_visiblepw
+
+    - name: "5.2.9 | PATCH | Ensure sudo visiblepw is configured | Disable visiblepw"
+      when: discovered_sudo_visiblepw.stdout | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^(\s*Defaults\s+(?:[^#\n]+,\s*)?)visiblepw\b'
+        replace: '\1!visiblepw'
+        validate: '/usr/sbin/visudo -cf %s'
+      loop: "{{ discovered_sudo_visiblepw.stdout_lines }}"
+
+- name: "5.2.10 | PATCH | Ensure sudo timestamp_timeout is configured"
+  when: amzn2027cis_rule_5_2_10
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - NIST800-53R5_IA-11
+    - rule_5.2.10
+  block:
+    - name: "5.2.10 | AUDIT | Ensure sudo timestamp_timeout is configured | Get files with timeout set"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -isE '^\s*Defaults.*timestamp_timeout' /etc/sudoers /etc/sudoers.d/* | cut -d":" -f1 | sort -u
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      register: discovered_sudo_timeout_files
+
+    - name: "5.2.10 | PATCH | Ensure sudo timestamp_timeout is configured | Set value if no results"
+      when: discovered_sudo_timeout_files.stdout | length == 0
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        regexp: 'Defaults timestamp_timeout='
+        line: "Defaults timestamp_timeout={{ amzn2027cis_sudo_timestamp_timeout }}"
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: "5.2.10 | PATCH | Ensure sudo timestamp_timeout is configured | Set value if has results"
+      when: discovered_sudo_timeout_files.stdout | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: 'timestamp_timeout\s*=\s*-?[0-9.]+'
+        replace: "timestamp_timeout={{ amzn2027cis_sudo_timestamp_timeout }}"
+        validate: '/usr/sbin/visudo -cf %s'
+      loop: "{{ discovered_sudo_timeout_files.stdout_lines }}"
+
+- name: "5.2.11 | PATCH | Ensure sudo timestamp_type is configured"
+  when: amzn2027cis_rule_5_2_11
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.11
+    - NIST800-53R5_AC-6
+  block:
+    - name: "5.2.11 | AUDIT | Ensure sudo timestamp_type is configured | Find files with a global timestamp_type"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -rlPi -- 'timestamp_type\h*=\h*global' /etc/sudoers /etc/sudoers.d/
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sudo_timestamp_type.rc not in [ 0, 1 ]
+      register: discovered_sudo_timestamp_type
+
+    - name: "5.2.11 | PATCH | Ensure sudo timestamp_type is configured | Set timestamp_type to tty"
+      when: discovered_sudo_timestamp_type.stdout | length > 0
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '(?i)timestamp_type\s*=\s*global\b'
+        replace: 'timestamp_type=tty'
+        validate: '/usr/sbin/visudo -cf %s'
+      loop: "{{ discovered_sudo_timestamp_type.stdout_lines }}"
+
+- name: "5.2.12 | PATCH | Ensure access to the su command is restricted"
+  when: amzn2027cis_rule_5_2_12
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sudo
+    - rule_5.2.12
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "5.2.12 | PATCH | Ensure access to the su command is restricted | Ensure sugroup exists"
+      ansible.builtin.group:
+        name: "{{ amzn2027cis_sugroup }}"
+        state: present
+
+    - name: "5.2.12 | PATCH | Ensure access to the su command is restricted | remove users from group"
+      ansible.builtin.lineinfile:
+        path: /etc/group
+        regexp: '^{{ amzn2027cis_sugroup }}(:.:.*:).*$'
+        line: '{{ amzn2027cis_sugroup }}\g<1>'
+        backrefs: true
+
+    - name: "5.2.12 | PATCH | Ensure access to the su command is restricted | Setting pam_wheel to use_uid"
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/su
+        regexp: '^(#)?auth\s+required\s+pam_wheel\.so'
+        line: 'auth           required        pam_wheel.so use_uid group={{ amzn2027cis_sugroup }}'

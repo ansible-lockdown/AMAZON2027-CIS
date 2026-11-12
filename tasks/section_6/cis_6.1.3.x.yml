@@ -1,0 +1,109 @@
+---
+
+- name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured"
+  when: amzn2027cis_rule_6_1_3_1
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - logfiles
+    - rule_6.1.3.1
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  block:
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | sysstat creates data files 0640"
+      when: "'sysstat' in ansible_facts['packages']"
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/sysstat
+        regexp: '^\s*#?\s*UMASK='
+        line: 'UMASK=0027'
+
+    - name: "6.1.3.1 | AUDIT | Ensure access to all logfiles has been configured | Check chrony log directive"
+      when: "'chrony' in ansible_facts['packages']"
+      ansible.builtin.command: grep -cE '^\s*log\s' /etc/chrony.conf
+      changed_when: false
+      failed_when: discovered_chrony_log_directive.rc not in [ 0, 1 ]
+      check_mode: false
+      register: discovered_chrony_log_directive
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | chronyd creates logs 0640"
+      when:
+        - "'chrony' in ansible_facts['packages']"
+        - discovered_chrony_log_directive.stdout | int > 0
+      block:
+        - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | chronyd drop-in directory"
+          ansible.builtin.file:
+            path: /etc/systemd/system/chronyd.service.d
+            state: directory
+            owner: root
+            group: root
+            mode: 'go-w'
+
+        - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | chronyd UMask drop-in"
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/chronyd.service.d/60-umask.conf
+            content: |
+              [Service]
+              UMask=0027
+            owner: root
+            group: root
+            mode: 'u-x,go-wx'
+          notify: Systemd daemon reload
+
+    - name: "6.1.3.1 | AUDIT | Ensure access to all logfiles has been configured | Find log files not at the strictest baseline"
+      ansible.builtin.shell: |
+        set -o pipefail
+        find /var/log -type f \( -perm /0137 -o ! -user root -o ! -group root \) -exec stat -c '%n|%U|%G' {} + 2>/dev/null || true
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_logfiles
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | Login accounting logs 0664"
+      when: item.split('|')[0] is match('/var/log/((u|b|w)tmp|lastlog)')
+      ansible.builtin.file:
+        path: "{{ item.split('|')[0] }}"
+        mode: 'ug-x,o-wx'
+      loop: "{{ discovered_logfiles.stdout_lines }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | systemd journal files 0640"
+      when: item.split('|')[0] is search('\.journal~?$')
+      ansible.builtin.file:
+        path: "{{ item.split('|')[0] }}"
+        mode: 'u-x,g-wx,o-rwx'
+      loop: "{{ discovered_logfiles.stdout_lines }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | Package manager and cloud or agent logs 0644"
+      when:
+        - item.split('|')[0] is not match('/var/log/((u|b|w)tmp|lastlog)')
+        - item.split('|')[0] is not search('\.journal~?$')
+        - item.split('|')[0] is match('/var/log/(dnf\.|dnf5\.log|hawkey\.log|yum\.log|cloud-init\.log|localmessages|waagent\.log)')
+      ansible.builtin.file:
+        path: "{{ item.split('|')[0] }}"
+        mode: 'u-x,go-wx'
+      loop: "{{ discovered_logfiles.stdout_lines }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | Service account logs 0640"
+      when:
+        - item.split('|')[0] is not match('/var/log/((u|b|w)tmp|lastlog)')
+        - item.split('|')[0] is not search('\.journal~?$')
+        - item.split('|')[0] is not match('/var/log/(dnf\.|dnf5\.log|hawkey\.log|yum\.log|cloud-init\.log|localmessages|waagent\.log)')
+        - item.split('|')[1] not in ['root', 'syslog']
+      ansible.builtin.file:
+        path: "{{ item.split('|')[0] }}"
+        mode: 'u-x,g-wx,o-rwx'
+      loop: "{{ discovered_logfiles.stdout_lines }}"
+
+    - name: "6.1.3.1 | PATCH | Ensure access to all logfiles has been configured | General system logs 0640 root or adm group"
+      when:
+        - item.split('|')[0] is not match('/var/log/((u|b|w)tmp|lastlog)')
+        - item.split('|')[0] is not search('\.journal~?$')
+        - item.split('|')[0] is not match('/var/log/(dnf\.|dnf5\.log|hawkey\.log|yum\.log|cloud-init\.log|localmessages|waagent\.log)')
+        - item.split('|')[1] in ['root', 'syslog']
+      ansible.builtin.file:
+        path: "{{ item.split('|')[0] }}"
+        group: "{{ (item.split('|')[2] in ['root', 'adm']) | ternary(omit, 'root') }}"
+        mode: 'u-x,g-wx,o-rwx'
+      loop: "{{ discovered_logfiles.stdout_lines }}"

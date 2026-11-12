@@ -1,0 +1,434 @@
+---
+
+- name: "1.8.1 | PATCH | Ensure GDM login banner is configured"
+  when:
+    - amzn2027cis_rule_1_8_1
+    - amzn2027cis_gui
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - gui
+    - gdm
+    - CCI-000048
+    - CCI-001384
+    - CCI-001385
+    - CCI-001386
+    - CCI-001387
+    - CCI-001388
+    - NIST800-53R5_AC-8
+    - rule_1.8.1
+  block:
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | gdm profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/gdm
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+      loop:
+        - { regexp: 'user-db', line: 'user-db:user' }
+        - { regexp: 'system-db', line: 'system-db:gdm' }
+        - { regexp: 'file-db', line: 'file-db:/usr/share/gdm/greeter-dconf-defaults' }
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | gdm profile"
+      ansible.builtin.template:
+        src: etc/dconf/db/gdm.d/01-banner-message.j2
+        dest: /etc/dconf/db/gdm.d/01-banner-message
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | User profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/user
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+      loop:
+        - { regexp: '^user-db', line: 'user-db:user' }
+        - { regexp: '^system-db', line: 'system-db:{{ amzn2027cis_dconf_db_name }}' }
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Local database keyfile"
+      ansible.builtin.template:
+        src: etc/dconf/db/gdm.d/01-banner-message.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/00-banner-message"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-banner-message_lock.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks/00-banner-message_lock"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.1 | AUDIT | Ensure GDM login banner is configured | Find incorrect settings"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Plis --exclude=00-banner-message -- '^\h*(banner-message-enable=false|banner-message-text=([\x27\x22]{2})?\h*$)' /etc/dconf/db/*.d/*
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_dconf_banner_incorrect.rc not in [ 0, 1, 2 ]
+      register: discovered_dconf_banner_incorrect
+
+    - name: "1.8.1 | PATCH | Ensure GDM login banner is configured | Comment out incorrect settings"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '(?i)^([ \t]*(banner-message-enable=false|banner-message-text=([\x27\x22]{2})?[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_dconf_banner_incorrect.stdout_lines }}"
+      notify: Reload dconf
+
+- name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured"
+  when:
+    - amzn2027cis_rule_1_8_2
+    - amzn2027cis_gui
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - gui
+    - CCI-000366
+    - NIST800-53R5_CM-6
+    - rule_1.8.2
+  block:
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | gdm profile"
+      ansible.builtin.lineinfile:
+        path: "{{ item.file }}"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+      loop:
+        - { file: '/etc/dconf/profile/gdm', regexp: 'user-db', line: 'user-db:user' }
+        - { file: '/etc/dconf/profile/gdm', regexp: 'system-db', line: 'system-db:gdm' }
+        - { file: '/etc/dconf/profile/gdm', regexp: 'file-db', line: 'file-db:/usr/share/gdm/greeter-dconf-defaults' }
+        - { file: '/etc/dconf/db/gdm.d/00-login-screen', regexp: '\[org\/gnome\/login-screen\]', line: '[org/gnome/login-screen]' }
+        - { file: '/etc/dconf/db/gdm.d/00-login-screen', regexp: 'disable-user-list=', line: 'disable-user-list=true' }
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | User profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/user
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+      loop:
+        - { regexp: '^user-db', line: 'user-db:user' }
+        - { regexp: '^system-db', line: 'system-db:{{ amzn2027cis_dconf_db_name }}' }
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Local database keyfile"
+      ansible.builtin.lineinfile:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/00-login-screen"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+      loop:
+        - { regexp: '\[org\/gnome\/login-screen\]', line: '[org/gnome/login-screen]' }
+        - { regexp: 'disable-user-list=', line: 'disable-user-list=true' }
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-login-screen_lock.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks/00-login-screen_lock"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.2 | AUDIT | Ensure GDM disable-user-list is configured | Find incorrect settings"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Plis --exclude=00-login-screen -- '^\h*disable-user-list=false\b' /etc/dconf/db/*.d/*
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_dconf_user_list_incorrect.rc not in [ 0, 1, 2 ]
+      register: discovered_dconf_user_list_incorrect
+
+    - name: "1.8.2 | PATCH | Ensure GDM disable-user-list is configured | Comment out incorrect settings"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '(?i)^([ \t]*disable-user-list=false\b.*)$'
+        replace: '# \1'
+      loop: "{{ discovered_dconf_user_list_incorrect.stdout_lines }}"
+      notify: Reload dconf
+
+- name: "1.8.3 | PATCH | Ensure GDM screen lock is configured"
+  when:
+    - amzn2027cis_rule_1_8_3
+    - amzn2027cis_gui
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - gui
+    - CCI-000057
+    - NIST800-53R5_AC-11
+    - rule_1.8.3
+  block:
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | User profile"
+      ansible.builtin.lineinfile:
+        path: /etc/dconf/profile/user
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: true
+        owner: root
+        group: root
+        mode: 'go-wx'
+      loop:
+        - { regexp: '^user-db', line: 'user-db:user' }
+        - { regexp: '^system-db', line: 'system-db:local' }
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make db directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-screensaver.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/00-screensaver"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-screensaver_lock.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks/00-screensaver_lock"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.3 | AUDIT | Ensure GDM screen lock is configured | Find incorrect settings"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Plis --exclude=00-screensaver -- '^\h*(idle-delay=uint32\h+(0|90[1-9]|9[1-9][0-9]|[1-9][0-9]{3,})|lock-delay=uint32\h+([6-9]|[1-9][0-9]+))\b' /etc/dconf/db/*.d/*
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_dconf_screensaver_incorrect.rc not in [ 0, 1, 2 ]
+      register: discovered_dconf_screensaver_incorrect
+
+    - name: "1.8.3 | PATCH | Ensure GDM screen lock is configured | Comment out incorrect settings"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '(?i)^([ \t]*(idle-delay=uint32[ \t]+(0|90[1-9]|9[1-9][0-9]|[1-9][0-9]{3,})|lock-delay=uint32[ \t]+([6-9]|[1-9][0-9]+))\b.*)$'
+        replace: '# \1'
+      loop: "{{ discovered_dconf_screensaver_incorrect.stdout_lines }}"
+      notify: Reload dconf
+
+- name: "1.8.4 | PATCH | Ensure GDM automount is configured"
+  when:
+    - amzn2027cis_rule_1_8_4
+    - amzn2027cis_gui
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - gui
+    - CCI-000778
+    - CCI-001958
+    - NIST800-53R5_IA-3
+    - rule_1.8.4
+  block:
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-media-automount.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/00-media-automount"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Make lock file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-automount_lock.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks/00-automount_lock"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.4 | AUDIT | Ensure GDM automount is configured | Find incorrect settings"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Plis --exclude=00-media-automount -- '^\h*(automount|automount-open)=true\b' /etc/dconf/db/*.d/*
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_dconf_automount_incorrect.rc not in [ 0, 1, 2 ]
+      register: discovered_dconf_automount_incorrect
+
+    - name: "1.8.4 | PATCH | Ensure GDM automount is configured | Comment out incorrect settings"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '(?i)^([ \t]*(automount|automount-open)=true\b.*)$'
+        replace: '# \1'
+      loop: "{{ discovered_dconf_automount_incorrect.stdout_lines }}"
+      notify: Reload dconf
+
+- name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured"
+  when:
+    - amzn2027cis_rule_1_8_5
+    - amzn2027cis_gui
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - gui
+    - CCI-001764
+    - NIST800-53R5_CM-7_2
+    - rule_1.8.5
+  block:
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make conf file"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-media-autorun.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/00-media-autorun"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make lock directory"
+      ansible.builtin.file:
+        path: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks"
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Make lockfile"
+      ansible.builtin.template:
+        src: etc/dconf/db/00-autorun_lock.j2
+        dest: "/etc/dconf/db/{{ amzn2027cis_dconf_db_name }}.d/locks/00-autorun_lock"
+        owner: root
+        group: root
+        mode: 'go-wx'
+      notify: Reload dconf
+
+    - name: "1.8.5 | AUDIT | Ensure GDM autorun-never is configured | Find incorrect settings"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Plis --exclude=00-media-autorun -- '^\h*autorun-never=false\b' /etc/dconf/db/*.d/*
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_dconf_autorun_incorrect.rc not in [ 0, 1, 2 ]
+      register: discovered_dconf_autorun_incorrect
+
+    - name: "1.8.5 | PATCH | Ensure GDM autorun-never is configured | Comment out incorrect settings"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '(?i)^([ \t]*autorun-never=false\b.*)$'
+        replace: '# \1'
+      loop: "{{ discovered_dconf_autorun_incorrect.stdout_lines }}"
+      notify: Reload dconf
+
+- name: "1.8.6 | PATCH | Ensure XDMCP is not enabled"
+  when:
+    - amzn2027cis_rule_1_8_6
+    - amzn2027cis_gui
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - gui
+    - NIST800-53R5_SI-4
+    - rule_1.8.6
+  ansible.builtin.lineinfile:
+    path: /etc/gdm/custom.conf
+    regexp: '^\s*Enable\s*=\s*true'
+    state: absent
+
+- name: "1.8.7 | PATCH | Ensure Wayland is configured"
+  when:
+    - amzn2027cis_rule_1_8_7
+    - amzn2027cis_gui
+    - "'gdm' in ansible_facts['packages']"
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - gui
+    - rule_1.8.7
+    - NIST800-53R5_CM-6
+  ansible.builtin.replace:
+    path: /etc/gdm/custom.conf
+    regexp: '(?i)^([ \t]*WaylandEnable\s*=\s*false\b.*)$'
+    replace: '# \1'

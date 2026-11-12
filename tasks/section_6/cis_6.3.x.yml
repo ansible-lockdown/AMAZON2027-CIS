@@ -1,0 +1,204 @@
+---
+
+- name: "AIDE | AUDIT | Check for /etc/aide.conf.rpmnew as aide conf changes occur"
+  when:
+    - amzn2027cis_config_aide
+    - amzn2027cis_rule_6_3_1
+  tags:
+    - level1-server
+    - automated
+    - aide
+    - patch
+    - NIST800-53R5_SI-7
+    - rule_6.3.1
+  ansible.builtin.stat:
+    path: /etc/aide.conf.rpmnew
+  register: discovered_aide_conf_rpmnew
+
+- name: "AIDE | PATCH | If rpm new exist update aide conf"
+  when:
+    - amzn2027cis_config_aide
+    - amzn2027cis_rule_6_3_1
+    - discovered_aide_conf_rpmnew['stat']['exists']
+  tags:
+    - level1-server
+    - automated
+    - aide
+    - patch
+    - NIST800-53R5_SI-7
+    - rule_6.3.1
+  block:
+    - name: "AIDE | PATCH | Update /etc/aide.conf with new version from RPM"
+      ansible.builtin.copy:
+        src: /etc/aide.conf.rpmnew
+        remote_src: true
+        dest: /etc/aide.conf
+        owner: root
+        group: root
+        mode: 'u-x,go-rwx'
+
+    - name: "AIDE | PATCH | Remove /etc/aide.conf.rpmnew"
+      ansible.builtin.file:
+        path: /etc/aide.conf.rpmnew
+        state: absent
+
+    - name: "AIDE | PATCH | Force AIDE DB update"
+      ansible.builtin.file:
+        path: /var/lib/aide/aide.db.gz
+        state: absent
+
+- name: "6.3.1 | PATCH | Ensure AIDE is installed"
+  when:
+    - amzn2027cis_config_aide
+    - amzn2027cis_rule_6_3_1
+  tags:
+    - level1-server
+    - automated
+    - aide
+    - patch
+    - NIST800-53R5_SI-7
+    - rule_6.3.1
+  block:
+    - name: "6.3.1 | PATCH | Ensure AIDE is installed"
+      ansible.builtin.package:
+        name: "{{ aide_packages }}"
+        state: present
+        update_cache: true
+      register: discovered_aide_pkg_added
+
+    - name: "6.3.1 | PATCH | Ensure AIDE is installed | Recapture packages"
+      when: discovered_aide_pkg_added.skipped is not defined
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: "6.3.1 | AUDIT | Ensure AIDE is installed | Check file exists"
+      ansible.builtin.stat:
+        path: "{{ amzn2027cis_aide_db_file }}"
+      register: discovered_aide_db_file
+
+    - name: "6.3.1 | AUDIT | Ensure AIDE is installed | Check current db file age"
+      when: discovered_aide_db_file.stat.exists
+      ansible.builtin.find:
+        path: "{{ amzn2027cis_aide_db_file | dirname }}"
+        pattern: "{{ amzn2027cis_aide_db_file | basename }}"
+        age: "{{ amzn2027cis_aide_db_file_age }}"
+      register: discovered_aide_db_age
+
+    - name: "6.3.1 | PATCH | Ensure AIDE is installed | Configure AIDE"
+      when:
+        - not ansible_check_mode
+        - not discovered_aide_db_file.stat.exists or
+          (discovered_aide_db_age.files | length > 0) or
+          amzn2027cis_aide_db_recreate
+      block:
+        - name: "6.3.1 | PATCH | Ensure AIDE is installed | Build AIDE DB"
+          ansible.builtin.command: "{{ aide_initiate_command }}"
+          changed_when: true
+
+        - name: "6.3.1 | PATCH | Ensure AIDE is installed | Build AIDE DB | Wait for file before continuing"
+          ansible.builtin.wait_for:
+            path: /var/lib/aide/aide.db.new.gz
+
+        - name: "6.3.1 | PATCH | Ensure AIDE is installed | Build AIDE DB | copy AIDE DB"
+          ansible.builtin.copy:
+            src: /var/lib/aide/aide.db.new.gz
+            dest: /var/lib/aide/aide.db.gz
+            remote_src: true
+            mode: 'ug-wx,o-rwx'
+          failed_when:
+            - not ansible_check_mode
+            - discovered_aide_db_cp.failed
+          register: discovered_aide_db_cp
+
+- name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked"
+  when:
+    - amzn2027cis_config_aide
+    - amzn2027cis_rule_6_3_2
+    - not system_is_ec2
+  tags:
+    - level1-server
+    - automated
+    - aide
+    - file_integrity
+    - patch
+    - NIST800-53R5_SI-7
+    - rule_6.3.2
+  block:
+    - name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked | cron"
+      when: amzn2027cis_aide_scan == "cron"
+      ansible.builtin.cron:
+        name: Run AIDE integrity check
+        cron_file: "{{ amzn2027cis_aide_cron['cron_file'] }}"
+        user: "{{ amzn2027cis_aide_cron['cron_user'] }}"
+        minute: "{{ amzn2027cis_aide_cron['aide_minute'] | default('0') }}"
+        hour: "{{ amzn2027cis_aide_cron['aide_hour'] | default('5') }}"
+        day: "{{ amzn2027cis_aide_cron['aide_day'] | default('*') }}"
+        month: "{{ amzn2027cis_aide_cron['aide_month'] | default('*') }}"
+        weekday: "{{ amzn2027cis_aide_cron['aide_weekday'] | default('*') }}"
+        job: "{{ amzn2027cis_aide_cron['aide_job'] }}"
+
+    - name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked | timer unit files"
+      when: amzn2027cis_aide_scan == "timer"
+      ansible.builtin.template:
+        src: "etc/systemd/system/{{ item }}.j2"
+        dest: "/etc/systemd/system/{{ item }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop:
+        - aidecheck.service
+        - aidecheck.timer
+      register: discovered_aidecheck_units
+
+    - name: "6.3.2 | PATCH | Ensure filesystem integrity is regularly checked | enable timer"
+      when: amzn2027cis_aide_scan == "timer"
+      ansible.builtin.systemd:
+        name: aidecheck.timer
+        daemon_reload: "{{ discovered_aidecheck_units is changed }}"
+        state: started
+        enabled: true
+
+- name: "6.3.3 | PATCH | Ensure cryptographic mechanisms are used to protect the integrity of audit tools"
+  when:
+    - amzn2027cis_config_aide
+    - amzn2027cis_rule_6_3_3
+    - not system_is_ec2
+  tags:
+    - level1-server
+    - automated
+    - aide
+    - file_integrity
+    - patch
+    - NIST800-53R5_SI-7
+    - rule_6.3.3
+  ansible.builtin.blockinfile:
+    path: /etc/aide.conf
+    marker: "# {mark} Audit tools - CIS benchmark - Ansible-lockdown"
+    block: |
+      /usr/bin/auditctl p+i+n+u+g+s+b+acl+xattrs+sha512
+      /usr/bin/auditd p+i+n+u+g+s+b+acl+xattrs+sha512
+      /usr/bin/augenrules p+i+n+u+g+s+b+acl+xattrs+sha512
+      /usr/bin/aureport p+i+n+u+g+s+b+acl+xattrs+sha512
+      /usr/bin/ausearch p+i+n+u+g+s+b+acl+xattrs+sha512
+  failed_when:
+    - not ansible_check_mode
+    - discovered_aide_file_integrity_check.failed
+  register: discovered_aide_file_integrity_check
+
+- name: "6.3.4 | PATCH | Ensure report_url is configured"
+  when:
+    - amzn2027cis_config_aide
+    - amzn2027cis_rule_6_3_4
+  tags:
+    - level1-server
+    - automated
+    - aide
+    - patch
+    - NIST800-53R5_SI-7
+    - NIST800-53R5_SI-7_2
+    - rule_6.3.4
+  ansible.builtin.lineinfile:
+    path: /etc/aide.conf
+    regexp: '^\s*#?\s*report_url\s*=\s*syslog:'
+    line: "report_url=syslog:{{ amzn2027cis_aide_report_url_syslog_facility }}"
+    insertafter: '^\s*report_url\s*='

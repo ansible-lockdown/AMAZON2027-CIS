@@ -1,0 +1,772 @@
+---
+
+
+# Extend default command timeout for longer running tests
+timeout_ms: {{ audit_cmd_timeout }}
+
+## Switching on/off specific baseline sections
+# These variables govern whether the tasks of a particular section are to be executed when running the role.
+# E.g: If you want to execute the tasks of Section 1 you should set the "_section1" variable to true.
+# If you do not want the tasks from that section to get executed you simply set the variable to "false".
+amzn2027cis_section1: {{ amzn2027cis_section1 }}
+amzn2027cis_section2: {{ amzn2027cis_section2 }}
+amzn2027cis_section3: {{ amzn2027cis_section3 }}
+amzn2027cis_section4: {{ amzn2027cis_section4 }}
+amzn2027cis_section5: {{ amzn2027cis_section5 }}
+amzn2027cis_section6: {{ amzn2027cis_section6 }}
+amzn2027cis_section7: {{ amzn2027cis_section7 }}
+
+# This is used for audit purposes to run only specific level use the tags
+# e.g.
+# - level1-server
+# - level2-workstation
+amzn2027cis_level_1: {{ amzn2027cis_level_1 }}
+amzn2027cis_level_2: {{ amzn2027cis_level_2 }}
+
+## Section 1.6 - Mandatory Access Control
+# This variable governs whether SELinux is disabled or not. If SELinux is NOT DISABLED by setting
+# 'amzn2027cis_selinux_disable' to 'true', the 1.6 subsection will be executed.
+amzn2027cis_selinux_disable: {{ amzn2027cis_selinux_disable }}
+# This variable is used in a preliminary task, handling grub2 paths either in case of
+# UEFI boot('/etc/grub2-efi.cfg') or in case of BIOS legacy-boot('/etc/grub2.cfg').
+amzn2027cis_legacy_boot: {{ amzn2027cis_legacy_boot }}
+
+#  to enable rules that may have IO impact on a system e.g. full filesystem scans or CPU heavy
+run_heavy_tests: {{ audit_run_heavy_tests }}
+
+## Benchmark name used by auditing control role
+# The audit variable found at the base
+## metadata for Audit benchmark
+benchmark_version: {{ benchmark_version }}
+
+benchmark: AMAZON2027-CIS
+
+# These variables correspond with the CIS rule IDs or paragraph numbers defined in
+# the CIS benchmark documents.
+# PLEASE NOTE: These work in coordination with the section # group variables and tags.
+# You must enable an entire section in order for the variables below to take effect.
+
+# Section 1 - Initial Setup
+## 1.1.1 Filesystem kernel modules
+amzn2027cis_rule_1_1_1_1: {{ amzn2027cis_rule_1_1_1_1 }}
+amzn2027cis_rule_1_1_1_2: {{ amzn2027cis_rule_1_1_1_2 }}
+amzn2027cis_rule_1_1_1_3: {{ amzn2027cis_rule_1_1_1_3 }}
+amzn2027cis_rule_1_1_1_4: {{ amzn2027cis_rule_1_1_1_4 }}
+amzn2027cis_rule_1_1_1_5: {{ amzn2027cis_rule_1_1_1_5 }}
+## 1.1.2.1 /tmp
+amzn2027cis_rule_1_1_2_1_1: {{ amzn2027cis_rule_1_1_2_1_1 }}
+amzn2027cis_rule_1_1_2_1_2: {{ amzn2027cis_rule_1_1_2_1_2 }}
+amzn2027cis_rule_1_1_2_1_3: {{ amzn2027cis_rule_1_1_2_1_3 }}
+amzn2027cis_rule_1_1_2_1_4: {{ amzn2027cis_rule_1_1_2_1_4 }}
+## 1.1.2.2 /dev/shm
+amzn2027cis_rule_1_1_2_2_1: {{ amzn2027cis_rule_1_1_2_2_1 }}
+amzn2027cis_rule_1_1_2_2_2: {{ amzn2027cis_rule_1_1_2_2_2 }}
+amzn2027cis_rule_1_1_2_2_3: {{ amzn2027cis_rule_1_1_2_2_3 }}
+amzn2027cis_rule_1_1_2_2_4: {{ amzn2027cis_rule_1_1_2_2_4 }}
+## 1.1.2.3 /home
+amzn2027cis_rule_1_1_2_3_1: {{ amzn2027cis_rule_1_1_2_3_1 }}
+amzn2027cis_rule_1_1_2_3_2: {{ amzn2027cis_rule_1_1_2_3_2 }}
+amzn2027cis_rule_1_1_2_3_3: {{ amzn2027cis_rule_1_1_2_3_3 }}
+## 1.1.2.4 /var
+amzn2027cis_rule_1_1_2_4_1: {{ amzn2027cis_rule_1_1_2_4_1 }}
+amzn2027cis_rule_1_1_2_4_2: {{ amzn2027cis_rule_1_1_2_4_2 }}
+amzn2027cis_rule_1_1_2_4_3: {{ amzn2027cis_rule_1_1_2_4_3 }}
+## 1.1.2.5 /var/tmp
+amzn2027cis_rule_1_1_2_5_1: {{ amzn2027cis_rule_1_1_2_5_1 }}
+amzn2027cis_rule_1_1_2_5_2: {{ amzn2027cis_rule_1_1_2_5_2 }}
+amzn2027cis_rule_1_1_2_5_3: {{ amzn2027cis_rule_1_1_2_5_3 }}
+amzn2027cis_rule_1_1_2_5_4: {{ amzn2027cis_rule_1_1_2_5_4 }}
+## 1.1.2.6 /var/log
+amzn2027cis_rule_1_1_2_6_1: {{ amzn2027cis_rule_1_1_2_6_1 }}
+amzn2027cis_rule_1_1_2_6_2: {{ amzn2027cis_rule_1_1_2_6_2 }}
+amzn2027cis_rule_1_1_2_6_3: {{ amzn2027cis_rule_1_1_2_6_3 }}
+amzn2027cis_rule_1_1_2_6_4: {{ amzn2027cis_rule_1_1_2_6_4 }}
+## 1.1.2.7 /var/log/audit
+amzn2027cis_rule_1_1_2_7_1: {{ amzn2027cis_rule_1_1_2_7_1 }}
+amzn2027cis_rule_1_1_2_7_2: {{ amzn2027cis_rule_1_1_2_7_2 }}
+amzn2027cis_rule_1_1_2_7_3: {{ amzn2027cis_rule_1_1_2_7_3 }}
+amzn2027cis_rule_1_1_2_7_4: {{ amzn2027cis_rule_1_1_2_7_4 }}
+## 1.2.1 Package management
+amzn2027cis_rule_1_2_1_1: {{ amzn2027cis_rule_1_2_1_1 }}
+amzn2027cis_rule_1_2_1_2: {{ amzn2027cis_rule_1_2_1_2 }}
+amzn2027cis_rule_1_2_1_3: {{ amzn2027cis_rule_1_2_1_3 }}
+amzn2027cis_rule_1_2_1_4: {{ amzn2027cis_rule_1_2_1_4 }}
+amzn2027cis_rule_1_2_1_5: {{ amzn2027cis_rule_1_2_1_5 }}
+## 1.2.2 Package updates
+amzn2027cis_rule_1_2_2_1: {{ amzn2027cis_rule_1_2_2_1 }}
+## 1.3.1 SELinux
+amzn2027cis_rule_1_3_1_1: {{ amzn2027cis_rule_1_3_1_1 }}
+amzn2027cis_rule_1_3_1_2: {{ amzn2027cis_rule_1_3_1_2 }}
+amzn2027cis_rule_1_3_1_3: {{ amzn2027cis_rule_1_3_1_3 }}
+amzn2027cis_rule_1_3_1_4: {{ amzn2027cis_rule_1_3_1_4 }}
+amzn2027cis_rule_1_3_1_5: {{ amzn2027cis_rule_1_3_1_5 }}
+amzn2027cis_rule_1_3_1_6: {{ amzn2027cis_rule_1_3_1_6 }}
+amzn2027cis_rule_1_3_1_7: {{ amzn2027cis_rule_1_3_1_7 }}
+amzn2027cis_rule_1_3_1_8: {{ amzn2027cis_rule_1_3_1_8 }}
+## 1.4 Bootloader
+amzn2027cis_rule_1_4_1: {{ amzn2027cis_rule_1_4_1 }}
+amzn2027cis_rule_1_4_2: {{ amzn2027cis_rule_1_4_2 }}
+amzn2027cis_rule_1_4_3: {{ amzn2027cis_rule_1_4_3 }}
+amzn2027cis_rule_1_4_4: {{ amzn2027cis_rule_1_4_4 }}
+amzn2027cis_rule_1_4_5: {{ amzn2027cis_rule_1_4_5 }}
+## 1.5 Additional process hardening
+amzn2027cis_rule_1_5_1: {{ amzn2027cis_rule_1_5_1 }}
+amzn2027cis_rule_1_5_2: {{ amzn2027cis_rule_1_5_2 }}
+amzn2027cis_rule_1_5_3: {{ amzn2027cis_rule_1_5_3 }}
+amzn2027cis_rule_1_5_4: {{ amzn2027cis_rule_1_5_4 }}
+amzn2027cis_rule_1_5_5: {{ amzn2027cis_rule_1_5_5 }}
+amzn2027cis_rule_1_5_6: {{ amzn2027cis_rule_1_5_6 }}
+amzn2027cis_rule_1_5_7: {{ amzn2027cis_rule_1_5_7 }}
+amzn2027cis_rule_1_5_8: {{ amzn2027cis_rule_1_5_8 }}
+amzn2027cis_rule_1_5_9: {{ amzn2027cis_rule_1_5_9 }}
+amzn2027cis_rule_1_5_10: {{ amzn2027cis_rule_1_5_10 }}
+## 1.6 System wide crypto policy
+amzn2027cis_rule_1_6_1: {{ amzn2027cis_rule_1_6_1 }}
+amzn2027cis_rule_1_6_2: {{ amzn2027cis_rule_1_6_2 }}
+amzn2027cis_rule_1_6_3: {{ amzn2027cis_rule_1_6_3 }}
+amzn2027cis_rule_1_6_4: {{ amzn2027cis_rule_1_6_4 }}
+amzn2027cis_rule_1_6_5: {{ amzn2027cis_rule_1_6_5 }}
+amzn2027cis_rule_1_6_6: {{ amzn2027cis_rule_1_6_6 }}
+amzn2027cis_rule_1_6_7: {{ amzn2027cis_rule_1_6_7 }}
+## 1.7 Command line warning banners
+amzn2027cis_rule_1_7_1: {{ amzn2027cis_rule_1_7_1 }}
+amzn2027cis_rule_1_7_2: {{ amzn2027cis_rule_1_7_2 }}
+amzn2027cis_rule_1_7_3: {{ amzn2027cis_rule_1_7_3 }}
+amzn2027cis_rule_1_7_4: {{ amzn2027cis_rule_1_7_4 }}
+amzn2027cis_rule_1_7_5: {{ amzn2027cis_rule_1_7_5 }}
+amzn2027cis_rule_1_7_6: {{ amzn2027cis_rule_1_7_6 }}
+## 1.8 GNOME Display Manager
+amzn2027cis_rule_1_8_1: {{ amzn2027cis_rule_1_8_1 }}
+amzn2027cis_rule_1_8_2: {{ amzn2027cis_rule_1_8_2 }}
+amzn2027cis_rule_1_8_3: {{ amzn2027cis_rule_1_8_3 }}
+amzn2027cis_rule_1_8_4: {{ amzn2027cis_rule_1_8_4 }}
+amzn2027cis_rule_1_8_5: {{ amzn2027cis_rule_1_8_5 }}
+amzn2027cis_rule_1_8_6: {{ amzn2027cis_rule_1_8_6 }}
+amzn2027cis_rule_1_8_7: {{ amzn2027cis_rule_1_8_7 }}
+
+# Section 2 - Services
+## 2.1 Server services
+amzn2027cis_rule_2_1_1: {{ amzn2027cis_rule_2_1_1 }}
+amzn2027cis_rule_2_1_2: {{ amzn2027cis_rule_2_1_2 }}
+amzn2027cis_rule_2_1_3: {{ amzn2027cis_rule_2_1_3 }}
+amzn2027cis_rule_2_1_4: {{ amzn2027cis_rule_2_1_4 }}
+amzn2027cis_rule_2_1_5: {{ amzn2027cis_rule_2_1_5 }}
+amzn2027cis_rule_2_1_6: {{ amzn2027cis_rule_2_1_6 }}
+amzn2027cis_rule_2_1_7: {{ amzn2027cis_rule_2_1_7 }}
+amzn2027cis_rule_2_1_8: {{ amzn2027cis_rule_2_1_8 }}
+amzn2027cis_rule_2_1_9: {{ amzn2027cis_rule_2_1_9 }}
+amzn2027cis_rule_2_1_10: {{ amzn2027cis_rule_2_1_10 }}
+amzn2027cis_rule_2_1_11: {{ amzn2027cis_rule_2_1_11 }}
+amzn2027cis_rule_2_1_12: {{ amzn2027cis_rule_2_1_12 }}
+amzn2027cis_rule_2_1_13: {{ amzn2027cis_rule_2_1_13 }}
+amzn2027cis_rule_2_1_14: {{ amzn2027cis_rule_2_1_14 }}
+amzn2027cis_rule_2_1_15: {{ amzn2027cis_rule_2_1_15 }}
+amzn2027cis_rule_2_1_16: {{ amzn2027cis_rule_2_1_16 }}
+amzn2027cis_rule_2_1_17: {{ amzn2027cis_rule_2_1_17 }}
+amzn2027cis_rule_2_1_18: {{ amzn2027cis_rule_2_1_18 }}
+amzn2027cis_rule_2_1_19: {{ amzn2027cis_rule_2_1_19 }}
+amzn2027cis_rule_2_1_20: {{ amzn2027cis_rule_2_1_20 }}
+amzn2027cis_rule_2_1_21: {{ amzn2027cis_rule_2_1_21 }}
+## 2.2 Client services
+amzn2027cis_rule_2_2_1: {{ amzn2027cis_rule_2_2_1 }}
+amzn2027cis_rule_2_2_2: {{ amzn2027cis_rule_2_2_2 }}
+amzn2027cis_rule_2_2_3: {{ amzn2027cis_rule_2_2_3 }}
+amzn2027cis_rule_2_2_4: {{ amzn2027cis_rule_2_2_4 }}
+## 2.3 Time synchronization
+amzn2027cis_rule_2_3_1: {{ amzn2027cis_rule_2_3_1 }}
+amzn2027cis_rule_2_3_2: {{ amzn2027cis_rule_2_3_2 }}
+amzn2027cis_rule_2_3_3: {{ amzn2027cis_rule_2_3_3 }}
+## 2.4.1 cron
+amzn2027cis_rule_2_4_1_1: {{ amzn2027cis_rule_2_4_1_1 }}
+amzn2027cis_rule_2_4_1_2: {{ amzn2027cis_rule_2_4_1_2 }}
+amzn2027cis_rule_2_4_1_3: {{ amzn2027cis_rule_2_4_1_3 }}
+amzn2027cis_rule_2_4_1_4: {{ amzn2027cis_rule_2_4_1_4 }}
+amzn2027cis_rule_2_4_1_5: {{ amzn2027cis_rule_2_4_1_5 }}
+amzn2027cis_rule_2_4_1_6: {{ amzn2027cis_rule_2_4_1_6 }}
+amzn2027cis_rule_2_4_1_7: {{ amzn2027cis_rule_2_4_1_7 }}
+amzn2027cis_rule_2_4_1_8: {{ amzn2027cis_rule_2_4_1_8 }}
+amzn2027cis_rule_2_4_1_9: {{ amzn2027cis_rule_2_4_1_9 }}
+## 2.4.2 at
+amzn2027cis_rule_2_4_2_1: {{ amzn2027cis_rule_2_4_2_1 }}
+
+# Section 3 - Network
+## 3.1 Network devices
+amzn2027cis_rule_3_1_1: {{ amzn2027cis_rule_3_1_1 }}
+amzn2027cis_rule_3_1_2: {{ amzn2027cis_rule_3_1_2 }}
+## 3.2 Network kernel modules
+amzn2027cis_rule_3_2_1: {{ amzn2027cis_rule_3_2_1 }}
+amzn2027cis_rule_3_2_2: {{ amzn2027cis_rule_3_2_2 }}
+amzn2027cis_rule_3_2_3: {{ amzn2027cis_rule_3_2_3 }}
+## 3.3.1 IPv4 kernel parameters
+amzn2027cis_rule_3_3_1_1: {{ amzn2027cis_rule_3_3_1_1 }}
+amzn2027cis_rule_3_3_1_2: {{ amzn2027cis_rule_3_3_1_2 }}
+amzn2027cis_rule_3_3_1_3: {{ amzn2027cis_rule_3_3_1_3 }}
+amzn2027cis_rule_3_3_1_4: {{ amzn2027cis_rule_3_3_1_4 }}
+amzn2027cis_rule_3_3_1_5: {{ amzn2027cis_rule_3_3_1_5 }}
+amzn2027cis_rule_3_3_1_6: {{ amzn2027cis_rule_3_3_1_6 }}
+amzn2027cis_rule_3_3_1_7: {{ amzn2027cis_rule_3_3_1_7 }}
+amzn2027cis_rule_3_3_1_8: {{ amzn2027cis_rule_3_3_1_8 }}
+amzn2027cis_rule_3_3_1_9: {{ amzn2027cis_rule_3_3_1_9 }}
+amzn2027cis_rule_3_3_1_10: {{ amzn2027cis_rule_3_3_1_10 }}
+amzn2027cis_rule_3_3_1_11: {{ amzn2027cis_rule_3_3_1_11 }}
+amzn2027cis_rule_3_3_1_12: {{ amzn2027cis_rule_3_3_1_12 }}
+amzn2027cis_rule_3_3_1_13: {{ amzn2027cis_rule_3_3_1_13 }}
+amzn2027cis_rule_3_3_1_14: {{ amzn2027cis_rule_3_3_1_14 }}
+amzn2027cis_rule_3_3_1_15: {{ amzn2027cis_rule_3_3_1_15 }}
+amzn2027cis_rule_3_3_1_16: {{ amzn2027cis_rule_3_3_1_16 }}
+amzn2027cis_rule_3_3_1_17: {{ amzn2027cis_rule_3_3_1_17 }}
+amzn2027cis_rule_3_3_1_18: {{ amzn2027cis_rule_3_3_1_18 }}
+amzn2027cis_rule_3_3_1_19: {{ amzn2027cis_rule_3_3_1_19 }}
+amzn2027cis_rule_3_3_1_20: {{ amzn2027cis_rule_3_3_1_20 }}
+amzn2027cis_rule_3_3_2_1: {{ amzn2027cis_rule_3_3_2_1 }}
+## 3.3.2 IPv6 kernel parameters
+amzn2027cis_rule_3_3_2_2: {{ amzn2027cis_rule_3_3_2_2 }}
+amzn2027cis_rule_3_3_2_3: {{ amzn2027cis_rule_3_3_2_3 }}
+amzn2027cis_rule_3_3_2_4: {{ amzn2027cis_rule_3_3_2_4 }}
+amzn2027cis_rule_3_3_2_5: {{ amzn2027cis_rule_3_3_2_5 }}
+amzn2027cis_rule_3_3_2_6: {{ amzn2027cis_rule_3_3_2_6 }}
+amzn2027cis_rule_3_3_2_7: {{ amzn2027cis_rule_3_3_2_7 }}
+amzn2027cis_rule_3_3_2_8: {{ amzn2027cis_rule_3_3_2_8 }}
+amzn2027cis_rule_3_3_2_9: {{ amzn2027cis_rule_3_3_2_9 }}
+
+# Section 4 - Host based firewall
+## 4.1 firewalld
+amzn2027cis_rule_4_1_1: {{ amzn2027cis_rule_4_1_1 }}
+amzn2027cis_rule_4_1_2: {{ amzn2027cis_rule_4_1_2 }}
+amzn2027cis_rule_4_1_3: {{ amzn2027cis_rule_4_1_3 }}
+amzn2027cis_rule_4_1_4: {{ amzn2027cis_rule_4_1_4 }}
+amzn2027cis_rule_4_1_5: {{ amzn2027cis_rule_4_1_5 }}
+amzn2027cis_rule_4_1_6: {{ amzn2027cis_rule_4_1_6 }}
+amzn2027cis_rule_4_1_7: {{ amzn2027cis_rule_4_1_7 }}
+amzn2027cis_rule_4_1_8: {{ amzn2027cis_rule_4_1_8 }}
+amzn2027cis_rule_4_1_9: {{ amzn2027cis_rule_4_1_9 }}
+amzn2027cis_rule_4_1_10: {{ amzn2027cis_rule_4_1_10 }}
+amzn2027cis_rule_4_1_11: {{ amzn2027cis_rule_4_1_11 }}
+
+# Section 5 - Access, authentication and authorization
+## 5.1 SSH server
+amzn2027cis_rule_5_1_1: {{ amzn2027cis_rule_5_1_1 }}
+amzn2027cis_rule_5_1_2: {{ amzn2027cis_rule_5_1_2 }}
+amzn2027cis_rule_5_1_3: {{ amzn2027cis_rule_5_1_3 }}
+amzn2027cis_rule_5_1_4: {{ amzn2027cis_rule_5_1_4 }}
+amzn2027cis_rule_5_1_5: {{ amzn2027cis_rule_5_1_5 }}
+amzn2027cis_rule_5_1_6: {{ amzn2027cis_rule_5_1_6 }}
+amzn2027cis_rule_5_1_7: {{ amzn2027cis_rule_5_1_7 }}
+amzn2027cis_rule_5_1_8: {{ amzn2027cis_rule_5_1_8 }}
+amzn2027cis_rule_5_1_9: {{ amzn2027cis_rule_5_1_9 }}
+amzn2027cis_rule_5_1_10: {{ amzn2027cis_rule_5_1_10 }}
+amzn2027cis_rule_5_1_11: {{ amzn2027cis_rule_5_1_11 }}
+amzn2027cis_rule_5_1_12: {{ amzn2027cis_rule_5_1_12 }}
+amzn2027cis_rule_5_1_13: {{ amzn2027cis_rule_5_1_13 }}
+amzn2027cis_rule_5_1_14: {{ amzn2027cis_rule_5_1_14 }}
+amzn2027cis_rule_5_1_15: {{ amzn2027cis_rule_5_1_15 }}
+amzn2027cis_rule_5_1_16: {{ amzn2027cis_rule_5_1_16 }}
+amzn2027cis_rule_5_1_17: {{ amzn2027cis_rule_5_1_17 }}
+amzn2027cis_rule_5_1_18: {{ amzn2027cis_rule_5_1_18 }}
+amzn2027cis_rule_5_1_19: {{ amzn2027cis_rule_5_1_19 }}
+amzn2027cis_rule_5_1_20: {{ amzn2027cis_rule_5_1_20 }}
+amzn2027cis_rule_5_1_21: {{ amzn2027cis_rule_5_1_21 }}
+amzn2027cis_rule_5_1_22: {{ amzn2027cis_rule_5_1_22 }}
+amzn2027cis_rule_5_1_23: {{ amzn2027cis_rule_5_1_23 }}
+## 5.2 Privilege escalation
+amzn2027cis_rule_5_2_1: {{ amzn2027cis_rule_5_2_1 }}
+amzn2027cis_rule_5_2_2: {{ amzn2027cis_rule_5_2_2 }}
+amzn2027cis_rule_5_2_3: {{ amzn2027cis_rule_5_2_3 }}
+amzn2027cis_rule_5_2_4: {{ amzn2027cis_rule_5_2_4 }}
+amzn2027cis_rule_5_2_5: {{ amzn2027cis_rule_5_2_5 }}
+amzn2027cis_rule_5_2_6: {{ amzn2027cis_rule_5_2_6 }}
+amzn2027cis_rule_5_2_7: {{ amzn2027cis_rule_5_2_7 }}
+amzn2027cis_rule_5_2_8: {{ amzn2027cis_rule_5_2_8 }}
+amzn2027cis_rule_5_2_9: {{ amzn2027cis_rule_5_2_9 }}
+amzn2027cis_rule_5_2_10: {{ amzn2027cis_rule_5_2_10 }}
+amzn2027cis_rule_5_2_11: {{ amzn2027cis_rule_5_2_11 }}
+amzn2027cis_rule_5_2_12: {{ amzn2027cis_rule_5_2_12 }}
+## 5.3.1 PAM software packages
+amzn2027cis_rule_5_3_1_1: {{ amzn2027cis_rule_5_3_1_1 }}
+amzn2027cis_rule_5_3_1_2: {{ amzn2027cis_rule_5_3_1_2 }}
+amzn2027cis_rule_5_3_1_3: {{ amzn2027cis_rule_5_3_1_3 }}
+## 5.3.2 authselect
+amzn2027cis_rule_5_3_2_1: {{ amzn2027cis_rule_5_3_2_1 }}
+amzn2027cis_rule_5_3_2_2: {{ amzn2027cis_rule_5_3_2_2 }}
+amzn2027cis_rule_5_3_2_3: {{ amzn2027cis_rule_5_3_2_3 }}
+amzn2027cis_rule_5_3_2_4: {{ amzn2027cis_rule_5_3_2_4 }}
+amzn2027cis_rule_5_3_2_5: {{ amzn2027cis_rule_5_3_2_5 }}
+## 5.3.3.1 pam_faillock
+amzn2027cis_rule_5_3_3_1_1: {{ amzn2027cis_rule_5_3_3_1_1 }}
+amzn2027cis_rule_5_3_3_1_2: {{ amzn2027cis_rule_5_3_3_1_2 }}
+amzn2027cis_rule_5_3_3_1_3: {{ amzn2027cis_rule_5_3_3_1_3 }}
+## 5.3.3.2 pam_pwquality
+amzn2027cis_rule_5_3_3_2_1: {{ amzn2027cis_rule_5_3_3_2_1 }}
+amzn2027cis_rule_5_3_3_2_2: {{ amzn2027cis_rule_5_3_3_2_2 }}
+amzn2027cis_rule_5_3_3_2_3: {{ amzn2027cis_rule_5_3_3_2_3 }}
+amzn2027cis_rule_5_3_3_2_4: {{ amzn2027cis_rule_5_3_3_2_4 }}
+amzn2027cis_rule_5_3_3_2_5: {{ amzn2027cis_rule_5_3_3_2_5 }}
+amzn2027cis_rule_5_3_3_2_6: {{ amzn2027cis_rule_5_3_3_2_6 }}
+amzn2027cis_rule_5_3_3_2_7: {{ amzn2027cis_rule_5_3_3_2_7 }}
+## 5.3.3.3 pam_pwhistory
+amzn2027cis_rule_5_3_3_3_1: {{ amzn2027cis_rule_5_3_3_3_1 }}
+amzn2027cis_rule_5_3_3_3_2: {{ amzn2027cis_rule_5_3_3_3_2 }}
+amzn2027cis_rule_5_3_3_3_3: {{ amzn2027cis_rule_5_3_3_3_3 }}
+## 5.3.3.4 pam_unix
+amzn2027cis_rule_5_3_3_4_1: {{ amzn2027cis_rule_5_3_3_4_1 }}
+amzn2027cis_rule_5_3_3_4_2: {{ amzn2027cis_rule_5_3_3_4_2 }}
+amzn2027cis_rule_5_3_3_4_3: {{ amzn2027cis_rule_5_3_3_4_3 }}
+amzn2027cis_rule_5_3_3_4_4: {{ amzn2027cis_rule_5_3_3_4_4 }}
+## 5.4.1 Shadow password suite
+amzn2027cis_rule_5_4_1_1: {{ amzn2027cis_rule_5_4_1_1 }}
+amzn2027cis_rule_5_4_1_2: {{ amzn2027cis_rule_5_4_1_2 }}
+amzn2027cis_rule_5_4_1_3: {{ amzn2027cis_rule_5_4_1_3 }}
+amzn2027cis_rule_5_4_1_4: {{ amzn2027cis_rule_5_4_1_4 }}
+amzn2027cis_rule_5_4_1_5: {{ amzn2027cis_rule_5_4_1_5 }}
+amzn2027cis_rule_5_4_1_6: {{ amzn2027cis_rule_5_4_1_6 }}
+## 5.4.2 root and system accounts
+amzn2027cis_rule_5_4_2_1: {{ amzn2027cis_rule_5_4_2_1 }}
+amzn2027cis_rule_5_4_2_2: {{ amzn2027cis_rule_5_4_2_2 }}
+amzn2027cis_rule_5_4_2_3: {{ amzn2027cis_rule_5_4_2_3 }}
+amzn2027cis_rule_5_4_2_4: {{ amzn2027cis_rule_5_4_2_4 }}
+amzn2027cis_rule_5_4_2_5: {{ amzn2027cis_rule_5_4_2_5 }}
+amzn2027cis_rule_5_4_2_6: {{ amzn2027cis_rule_5_4_2_6 }}
+amzn2027cis_rule_5_4_2_7: {{ amzn2027cis_rule_5_4_2_7 }}
+amzn2027cis_rule_5_4_2_8: {{ amzn2027cis_rule_5_4_2_8 }}
+## 5.4.3 User default environment
+amzn2027cis_rule_5_4_3_1: {{ amzn2027cis_rule_5_4_3_1 }}
+amzn2027cis_rule_5_4_3_2: {{ amzn2027cis_rule_5_4_3_2 }}
+amzn2027cis_rule_5_4_3_3: {{ amzn2027cis_rule_5_4_3_3 }}
+amzn2027cis_rule_5_4_3_4: {{ amzn2027cis_rule_5_4_3_4 }}
+
+# Section 6 - Logging and auditing
+## 6.1.1 journald
+amzn2027cis_rule_6_1_1_1: {{ amzn2027cis_rule_6_1_1_1 }}
+amzn2027cis_rule_6_1_1_2: {{ amzn2027cis_rule_6_1_1_2 }}
+amzn2027cis_rule_6_1_1_3: {{ amzn2027cis_rule_6_1_1_3 }}
+amzn2027cis_rule_6_1_1_4: {{ amzn2027cis_rule_6_1_1_4 }}
+amzn2027cis_rule_6_1_1_5: {{ amzn2027cis_rule_6_1_1_5 }}
+## 6.1.2 rsyslog
+amzn2027cis_rule_6_1_2_1: {{ amzn2027cis_rule_6_1_2_1 }}
+amzn2027cis_rule_6_1_2_2: {{ amzn2027cis_rule_6_1_2_2 }}
+amzn2027cis_rule_6_1_2_3: {{ amzn2027cis_rule_6_1_2_3 }}
+amzn2027cis_rule_6_1_2_4: {{ amzn2027cis_rule_6_1_2_4 }}
+amzn2027cis_rule_6_1_2_5: {{ amzn2027cis_rule_6_1_2_5 }}
+amzn2027cis_rule_6_1_2_6: {{ amzn2027cis_rule_6_1_2_6 }}
+amzn2027cis_rule_6_1_2_7: {{ amzn2027cis_rule_6_1_2_7 }}
+amzn2027cis_rule_6_1_2_8: {{ amzn2027cis_rule_6_1_2_8 }}
+amzn2027cis_rule_6_1_2_9: {{ amzn2027cis_rule_6_1_2_9 }}
+amzn2027cis_rule_6_1_2_10: {{ amzn2027cis_rule_6_1_2_10 }}
+amzn2027cis_rule_6_1_2_11: {{ amzn2027cis_rule_6_1_2_11 }}
+amzn2027cis_rule_6_1_2_12: {{ amzn2027cis_rule_6_1_2_12 }}
+amzn2027cis_rule_6_1_2_13: {{ amzn2027cis_rule_6_1_2_13 }}
+amzn2027cis_rule_6_1_2_14: {{ amzn2027cis_rule_6_1_2_14 }}
+## 6.1.3 Logfiles
+amzn2027cis_rule_6_1_3_1: {{ amzn2027cis_rule_6_1_3_1 }}
+## 6.2.1 auditd service
+amzn2027cis_rule_6_2_1_1: {{ amzn2027cis_rule_6_2_1_1 }}
+amzn2027cis_rule_6_2_1_2: {{ amzn2027cis_rule_6_2_1_2 }}
+amzn2027cis_rule_6_2_1_3: {{ amzn2027cis_rule_6_2_1_3 }}
+amzn2027cis_rule_6_2_1_4: {{ amzn2027cis_rule_6_2_1_4 }}
+## 6.2.2 Data retention
+amzn2027cis_rule_6_2_2_1: {{ amzn2027cis_rule_6_2_2_1 }}
+amzn2027cis_rule_6_2_2_2: {{ amzn2027cis_rule_6_2_2_2 }}
+amzn2027cis_rule_6_2_2_3: {{ amzn2027cis_rule_6_2_2_3 }}
+amzn2027cis_rule_6_2_2_4: {{ amzn2027cis_rule_6_2_2_4 }}
+## 6.2.3 auditd rules
+amzn2027cis_rule_6_2_3_1: {{ amzn2027cis_rule_6_2_3_1 }}
+amzn2027cis_rule_6_2_3_2: {{ amzn2027cis_rule_6_2_3_2 }}
+amzn2027cis_rule_6_2_3_3: {{ amzn2027cis_rule_6_2_3_3 }}
+amzn2027cis_rule_6_2_3_4: {{ amzn2027cis_rule_6_2_3_4 }}
+amzn2027cis_rule_6_2_3_5: {{ amzn2027cis_rule_6_2_3_5 }}
+amzn2027cis_rule_6_2_3_6: {{ amzn2027cis_rule_6_2_3_6 }}
+amzn2027cis_rule_6_2_3_7: {{ amzn2027cis_rule_6_2_3_7 }}
+amzn2027cis_rule_6_2_3_8: {{ amzn2027cis_rule_6_2_3_8 }}
+amzn2027cis_rule_6_2_3_9: {{ amzn2027cis_rule_6_2_3_9 }}
+amzn2027cis_rule_6_2_3_10: {{ amzn2027cis_rule_6_2_3_10 }}
+amzn2027cis_rule_6_2_3_11: {{ amzn2027cis_rule_6_2_3_11 }}
+amzn2027cis_rule_6_2_3_12: {{ amzn2027cis_rule_6_2_3_12 }}
+amzn2027cis_rule_6_2_3_13: {{ amzn2027cis_rule_6_2_3_13 }}
+amzn2027cis_rule_6_2_3_14: {{ amzn2027cis_rule_6_2_3_14 }}
+amzn2027cis_rule_6_2_3_15: {{ amzn2027cis_rule_6_2_3_15 }}
+amzn2027cis_rule_6_2_3_16: {{ amzn2027cis_rule_6_2_3_16 }}
+amzn2027cis_rule_6_2_3_17: {{ amzn2027cis_rule_6_2_3_17 }}
+amzn2027cis_rule_6_2_3_18: {{ amzn2027cis_rule_6_2_3_18 }}
+amzn2027cis_rule_6_2_3_19: {{ amzn2027cis_rule_6_2_3_19 }}
+amzn2027cis_rule_6_2_3_20: {{ amzn2027cis_rule_6_2_3_20 }}
+amzn2027cis_rule_6_2_3_21: {{ amzn2027cis_rule_6_2_3_21 }}
+amzn2027cis_rule_6_2_3_22: {{ amzn2027cis_rule_6_2_3_22 }}
+amzn2027cis_rule_6_2_3_23: {{ amzn2027cis_rule_6_2_3_23 }}
+amzn2027cis_rule_6_2_3_24: {{ amzn2027cis_rule_6_2_3_24 }}
+amzn2027cis_rule_6_2_3_25: {{ amzn2027cis_rule_6_2_3_25 }}
+amzn2027cis_rule_6_2_3_26: {{ amzn2027cis_rule_6_2_3_26 }}
+amzn2027cis_rule_6_2_3_27: {{ amzn2027cis_rule_6_2_3_27 }}
+amzn2027cis_rule_6_2_3_28: {{ amzn2027cis_rule_6_2_3_28 }}
+amzn2027cis_rule_6_2_3_29: {{ amzn2027cis_rule_6_2_3_29 }}
+amzn2027cis_rule_6_2_3_30: {{ amzn2027cis_rule_6_2_3_30 }}
+amzn2027cis_rule_6_2_3_31: {{ amzn2027cis_rule_6_2_3_31 }}
+amzn2027cis_rule_6_2_3_32: {{ amzn2027cis_rule_6_2_3_32 }}
+amzn2027cis_rule_6_2_3_33: {{ amzn2027cis_rule_6_2_3_33 }}
+amzn2027cis_rule_6_2_3_34: {{ amzn2027cis_rule_6_2_3_34 }}
+amzn2027cis_rule_6_2_3_35: {{ amzn2027cis_rule_6_2_3_35 }}
+amzn2027cis_rule_6_2_3_36: {{ amzn2027cis_rule_6_2_3_36 }}
+amzn2027cis_rule_6_2_3_37: {{ amzn2027cis_rule_6_2_3_37 }}
+## 6.2.4 auditd file access
+amzn2027cis_rule_6_2_4_1: {{ amzn2027cis_rule_6_2_4_1 }}
+amzn2027cis_rule_6_2_4_2: {{ amzn2027cis_rule_6_2_4_2 }}
+amzn2027cis_rule_6_2_4_3: {{ amzn2027cis_rule_6_2_4_3 }}
+amzn2027cis_rule_6_2_4_4: {{ amzn2027cis_rule_6_2_4_4 }}
+amzn2027cis_rule_6_2_4_5: {{ amzn2027cis_rule_6_2_4_5 }}
+amzn2027cis_rule_6_2_4_6: {{ amzn2027cis_rule_6_2_4_6 }}
+amzn2027cis_rule_6_2_4_7: {{ amzn2027cis_rule_6_2_4_7 }}
+amzn2027cis_rule_6_2_4_8: {{ amzn2027cis_rule_6_2_4_8 }}
+amzn2027cis_rule_6_2_4_9: {{ amzn2027cis_rule_6_2_4_9 }}
+amzn2027cis_rule_6_2_4_10: {{ amzn2027cis_rule_6_2_4_10 }}
+## 6.3 Integrity checking (AIDE)
+amzn2027cis_rule_6_3_1: {{ amzn2027cis_rule_6_3_1 }}
+amzn2027cis_rule_6_3_2: {{ amzn2027cis_rule_6_3_2 }}
+amzn2027cis_rule_6_3_3: {{ amzn2027cis_rule_6_3_3 }}
+amzn2027cis_rule_6_3_4: {{ amzn2027cis_rule_6_3_4 }}
+
+# Section 7 - System maintenance
+## 7.1 System file permissions
+amzn2027cis_rule_7_1_1: {{ amzn2027cis_rule_7_1_1 }}
+amzn2027cis_rule_7_1_2: {{ amzn2027cis_rule_7_1_2 }}
+amzn2027cis_rule_7_1_3: {{ amzn2027cis_rule_7_1_3 }}
+amzn2027cis_rule_7_1_4: {{ amzn2027cis_rule_7_1_4 }}
+amzn2027cis_rule_7_1_5: {{ amzn2027cis_rule_7_1_5 }}
+amzn2027cis_rule_7_1_6: {{ amzn2027cis_rule_7_1_6 }}
+amzn2027cis_rule_7_1_7: {{ amzn2027cis_rule_7_1_7 }}
+amzn2027cis_rule_7_1_8: {{ amzn2027cis_rule_7_1_8 }}
+amzn2027cis_rule_7_1_9: {{ amzn2027cis_rule_7_1_9 }}
+amzn2027cis_rule_7_1_10: {{ amzn2027cis_rule_7_1_10 }}
+amzn2027cis_rule_7_1_11: {{ amzn2027cis_rule_7_1_11 }}
+amzn2027cis_rule_7_1_12: {{ amzn2027cis_rule_7_1_12 }}
+amzn2027cis_rule_7_1_13: {{ amzn2027cis_rule_7_1_13 }}
+## 7.2 Local user and group settings
+amzn2027cis_rule_7_2_1: {{ amzn2027cis_rule_7_2_1 }}
+amzn2027cis_rule_7_2_2: {{ amzn2027cis_rule_7_2_2 }}
+amzn2027cis_rule_7_2_3: {{ amzn2027cis_rule_7_2_3 }}
+amzn2027cis_rule_7_2_4: {{ amzn2027cis_rule_7_2_4 }}
+amzn2027cis_rule_7_2_5: {{ amzn2027cis_rule_7_2_5 }}
+amzn2027cis_rule_7_2_6: {{ amzn2027cis_rule_7_2_6 }}
+amzn2027cis_rule_7_2_7: {{ amzn2027cis_rule_7_2_7 }}
+amzn2027cis_rule_7_2_8: {{ amzn2027cis_rule_7_2_8 }}
+amzn2027cis_rule_7_2_9: {{ amzn2027cis_rule_7_2_9 }}
+
+############
+
+## Remediation gates the audit follows - a control the role is told not to change is reported SKIPPED
+amzn2027cis_disruption_high: {{ amzn2027cis_disruption_high }}
+amzn2027cis_allow_authselect_updates: {{ amzn2027cis_allow_authselect_updates }}
+amzn2027cis_authselect_pkg_update: {{ amzn2027cis_authselect_pkg_update }}
+amzn2027cis_crypto_policy_ansiblemanaged: {{ amzn2027cis_crypto_policy_ansiblemanaged }}
+amzn2027cis_selinux_enforce: {{ amzn2027cis_selinux_enforce }}
+amzn2027cis_config_aide: {{ amzn2027cis_config_aide }}
+amzn2027cis_force_user_maxdays: {{ amzn2027cis_force_user_maxdays }}
+amzn2027cis_force_user_mindays: {{ amzn2027cis_force_user_mindays }}
+amzn2027cis_system_users_shell: {{ amzn2027cis_system_users_shell | to_json }}
+
+## Section 1 vars
+
+## Control 1.4.1
+# This variable governs whether a bootloader password should be set in '/boot/grub2/user.cfg' file.
+amzn2027cis_set_boot_pass: {{ amzn2027cis_set_boot_pass }}
+
+## Controls:
+# - 1.7.1 - Ensure message of the day is configured properly
+# - 1.7.2 - Ensure local login warning banner is configured properly
+# - 1.7.3 - Ensure remote login warning banner is configured properly
+# This variable  stores the content for the Warning Banner(relevant for issue, issue.net, motd).
+amzn2027cis_warning_banner: |
+{{ amzn2027cis_warning_banner | indent(2, first=True) }}
+# End Banner
+
+## Control 1.8.x - Settings for GDM
+## 1.8 GDM graphical interface
+amzn2027cis_gui: {{ amzn2027cis_gui }}
+amzn2027cis_enable_repogpg: {{ amzn2027cis_enable_repogpg }}
+
+# This variable specifies the GNOME configuration database file to which configurations are written.
+# (See "https://help.gnome.org/admin/system-admin-guide/stable/dconf-keyfiles.html.en")
+# The default database is 'local'.
+amzn2027cis_dconf_db_name: {{ amzn2027cis_dconf_db_name }}
+
+
+## Section 2. Services
+
+# Service configuration
+# Options are
+# Service
+# - false - removes package
+# - true - leaves package installed
+# Mask
+# - false - leaves service in current status
+# - true - sets service name to masked
+#
+# Setting both Service and Mask to false will remove the package if exists
+amzn2027cis_autofs_services: {{ amzn2027cis_autofs_services }}
+amzn2027cis_autofs_mask: {{ amzn2027cis_autofs_mask }}
+amzn2027cis_avahi_server: {{ amzn2027cis_avahi_server }}
+amzn2027cis_avahi_mask: {{ amzn2027cis_avahi_mask }}
+amzn2027cis_dns_server: {{ amzn2027cis_dns_server }}
+amzn2027cis_dns_mask: {{ amzn2027cis_dns_mask }}
+amzn2027cis_dnsmasq_server: {{ amzn2027cis_dnsmasq_server }}
+amzn2027cis_dnsmasq_mask: {{ amzn2027cis_dnsmasq_mask }}
+amzn2027cis_samba_server: {{ amzn2027cis_samba_server }}
+amzn2027cis_samba_mask: {{ amzn2027cis_samba_mask }}
+amzn2027cis_ftp_server: {{ amzn2027cis_ftp_server }}
+amzn2027cis_ftp_mask: {{ amzn2027cis_ftp_mask }}
+amzn2027cis_message_server: {{ amzn2027cis_message_server }}  # This is for messaging dovecot and cyrus-imap
+amzn2027cis_message_mask: {{ amzn2027cis_message_mask }}
+amzn2027cis_nfs_server: {{ amzn2027cis_nfs_server }}
+amzn2027cis_nfs_mask: {{ amzn2027cis_nfs_mask }}
+amzn2027cis_print_server: {{ amzn2027cis_print_server }}  # replaces cups
+amzn2027cis_print_mask: {{ amzn2027cis_print_mask }}
+amzn2027cis_rpc_server: {{ amzn2027cis_rpc_server }}
+amzn2027cis_rpc_mask: {{ amzn2027cis_rpc_mask }}
+amzn2027cis_rsync_server: {{ amzn2027cis_rsync_server }}
+amzn2027cis_rsync_mask: {{ amzn2027cis_rsync_mask }}
+amzn2027cis_snmp_server: {{ amzn2027cis_snmp_server }}
+amzn2027cis_snmp_mask: {{ amzn2027cis_snmp_mask }}
+amzn2027cis_telnet_server: {{ amzn2027cis_telnet_server }}
+amzn2027cis_telnet_mask: {{ amzn2027cis_telnet_mask }}
+amzn2027cis_tftp_server: {{ amzn2027cis_tftp_server }}
+amzn2027cis_tftp_mask: {{ amzn2027cis_tftp_mask }}
+amzn2027cis_squid_server: {{ amzn2027cis_squid_server }}
+amzn2027cis_squid_mask: {{ amzn2027cis_squid_mask }}
+amzn2027cis_httpd_server: {{ amzn2027cis_httpd_server }}
+amzn2027cis_httpd_mask: {{ amzn2027cis_httpd_mask }}
+amzn2027cis_nginx_server: {{ amzn2027cis_nginx_server }}
+amzn2027cis_nginx_mask: {{ amzn2027cis_nginx_mask }}
+amzn2027cis_xwindow_server: {{ amzn2027cis_xwindow_server }}  # will remove mask not an option
+amzn2027cis_is_mail_server: {{ amzn2027cis_is_mail_server }}
+
+## Section 2.3 Service clients
+
+amzn2027cis_ftp_client: {{ amzn2027cis_ftp_client }}
+amzn2027cis_openldap_clients_required: {{ amzn2027cis_openldap_clients_required }}
+amzn2027cis_telnet_required: {{ amzn2027cis_telnet_required }}
+amzn2027cis_tftp_client: {{ amzn2027cis_tftp_client }}
+
+## Section 3 vars
+## Sysctl
+# Service configuration
+# Options are
+# Service
+# - false - removes package
+# - true - leaves package installed
+# Mask
+# - false - leaves service in current status
+# - true - sets service name to masked
+#
+# Setting both Service and Mask to false will remove the package if exists
+#
+amzn2027cis_bluetooth_service: {{ amzn2027cis_bluetooth_service }}
+amzn2027cis_bluetooth_mask: {{ amzn2027cis_bluetooth_mask }}
+
+## 3.1 IPv6 requirement toggle
+# This variable governs whether ipv6 is enabled or disabled.
+amzn2027cis_ipv6_required: {{ amzn2027cis_ipv6_required }}
+# amzn2027cis_ipv6_disable defines the method of disabling IPv6, sysctl vs kernel
+amzn2027cis_ipv6_disable_method: {{ amzn2027cis_ipv6_disable_method }}
+
+# 3.3 System network parameters (host only OR host and router)
+# This variable governs whether specific CIS rules
+# concerned with acceptance and routing of packages are skipped.
+amzn2027cis_is_router: {{ amzn2027cis_is_router }}
+
+# Section 4 vars
+### Firewall Service to install and configure - Options are:
+# 1) either 'firewalld'
+# 2) or 'nftables'
+#### Some control allow for services to be removed or masked
+#### The options are under each heading
+#### absent = remove the package
+#### masked = leave package if installed and mask the service
+amzn2027cis_firewall: {{ amzn2027cis_firewall }}
+
+## Section5 vars
+
+## Section 5.1 - SSH
+
+## Controls:
+## - 5.1.8  - Ensure SSH access is limited
+# This variable, if specified, configures a list of USER name patterns, separated by spaces, to allow SSH
+# access for users whose user name matches one of the patterns. This is done
+# by setting the value of `AllowUsers` option in `/etc/ssh/sshd_config` file.
+# If an USER@HOST format will be used, the specified user will be allowed only on that particular host.
+amzn2027cis_sshd_allowusers: "{% if ansible_facts['user_id'] != 'root' %}{{ ansible_facts['user_id'] }}{% elif ansible_facts['env']['SUDO_USER'] is defined %}{{ ansible_facts['env']['SUDO_USER'] }}{% endif %}"
+
+# (String) This variable, if specified, configures a list of GROUP name patterns, separated by spaces, to allow SSH access
+# for users whose primary group or supplementary group list matches one of the patterns. This is done
+# by setting the value of `AllowGroups` option in `/etc/ssh/sshd_config` file.
+amzn2027cis_sshd_allowgroups: {{ amzn2027cis_sshd_allowgroups }}
+
+# This variable, if specified, configures a list of USER name patterns, separated by spaces, to prevent SSH access
+# for users whose user name matches one of the patterns. This is done
+# by setting the value of `DenyUsers` option in `/etc/ssh/sshd_config` file.
+# If an USER@HOST format will be used, the specified user will be restricted only on that particular host.
+amzn2027cis_sshd_denyusers: {{ amzn2027cis_sshd_denyusers }}
+
+# This variable, if specified, configures a list of GROUP name patterns, separated by spaces,
+# to prevent SSH access for users whose primary group or supplementary group list matches one of the patterns. This is done
+# by setting the value of `DenyGroups` option in `/etc/ssh/sshd_config` file.
+amzn2027cis_sshd_denygroups: {{ amzn2027cis_sshd_denygroups }}
+
+## Control 5.2.x - Ensure sudo log file exists
+# By default, sudo logs through syslog(3). However, to specify a custom log file, the
+# 'logfile' parameter will be used, setting it with current variable's value.
+# This variable defines the path and file name of the sudo log file.
+amzn2027cis_sudolog_location: {{ amzn2027cis_sudolog_location }}
+
+## Control 5.2 - Ensure access to the 'su' command is restricted
+# This variable determines the name of the group of users that are allowed to use the su command.
+# CIS requires that such a group be CREATED(named according to site policy) and be kept EMPTY.
+amzn2027cis_sugroup: {{ amzn2027cis_sugroup }}
+
+# Control 5.3.3.2
+# Choose if using minclass or credits options
+# Options are: minclass or credits
+# ensure only one is selected
+amzn2027cis_passwd_complex_option: {{ amzn2027cis_passwd_complex_option }}
+
+## Section 5.4.1.x: Shadow Password Suite Parameters
+  ## Control 5.4.1.1 - Ensure password expiration is 365 days or less
+  # This variable governs after how many days a password expires.
+  # CIS requires a value of 365 or less.
+amzn2027cis_pass_max_days: {{ amzn2027cis_pass_max_days }}
+  ## Control 5.4.1.2 - Ensure minimum days between password change can be 7 or more
+  # This variable specifies the minimum number of days allowed between changing
+  # passwords. CIS requires a value of at least 1.
+amzn2027cis_pass_min_days: {{ amzn2027cis_pass_min_days }}
+  ## Control 5.4.1.3 - Ensure password expiration warning days is 7 or more
+  # This variable governs, how many days before a password expires, the user will be warned.
+  # CIS requires a value of at least 7.
+amzn2027cis_pass_warn_age: {{ amzn2027cis_pass_warn_age }}
+
+## PAM AND Authselect
+
+# This variable configures the name of the custom profile to be created and selected.
+# To be changed from default - cis_example_profile
+amzn2027cis_authselect_custom_profile_name: {{ amzn2027cis_authselect_custom_profile_name }}
+
+### Controls:
+# - 5.6.2 -  Ensure system accounts are secured
+# - 6.2.10 - Ensure local interactive user home directories exist
+# - 6.2.11 - Ensure local interactive users own their home directories
+# UID settings for interactive users
+# These are discovered via logins.def if set true
+amzn2027cis_discover_int_uid: {{ amzn2027cis_discover_int_uid }}
+# This variable sets the minimum number from which to search for UID
+# Note that the value will be dynamically overwritten if variable `discover_int_uid` has
+# been set to `true`.
+min_int_uid: 1000
+### Controls:
+# - Ensure local interactive user home directories exist
+# - Ensure local interactive users own their home directories
+# This variable sets the maximum number at which the search stops for UID
+# Note that the value will be dynamically overwritten if variable `discover_int_uid` has
+# been set to `true`.
+max_int_uid: 65533
+
+## Section6 vars
+
+## Control 6.3.2 AIDE schedule
+# how aide scheduler runs can be one of cron or timer
+amzn2027cis_aide_scan: {{ amzn2027cis_aide_scan }}
+
+# These are the crontab settings for periodical checking of the filesystem's integrity using AIDE.
+# The sub-settings of this variable provide the parameters required to configure
+# the cron job on the target system.
+# Cron is a time-based job scheduling program in Unix OS, which allows tasks to be scheduled
+# and executed automatically at a certain point in time.
+amzn2027cis_aide_cron:
+  # This variable represents the user account under which the cron job for AIDE will run.
+  cron_user: root
+  # This variable represents the path to the AIDE crontab file.
+  cron_file: /etc/cron.d/aide_cron
+  # This variable represents the actual command or script that the cron job
+  # will execute for running AIDE.
+  aide_job: '/usr/bin/aide --check'
+  # These variables define the schedule for the cron job
+  # This variable governs the minute of the time of day when the AIDE cronjob is run.
+  # It must be in the range `0-59`.
+  aide_minute: 0
+  # This variable governs the hour of the time of day when the AIDE cronjob is run.
+  # It must be in the range `0-23`.
+  aide_hour: 5
+  # This variable governs the day of the month when the AIDE cronjob is run.
+  # `*` signifies that the job is run on all days; furthermore, specific days
+  # can be given in the range `1-31`; several days can be concatenated with a comma.
+  # The specified day(s) can must be in the range  `1-31`.
+  aide_day: '*'
+  # This variable governs months when the AIDE cronjob is run.
+  # `*` signifies that the job is run in every month; furthermore, specific months
+  # can be given in the range `1-12`; several months can be concatenated with commas.
+  # The specified month(s) can must be in the range  `1-12`.
+  aide_month: '*'
+  # This variable governs the weekdays, when the AIDE cronjob is run.
+  # `*` signifies that the job is run on all weekdays; furthermore, specific weekdays
+  # can be given in the range `0-7` (both `0` and `7` represent Sunday); several weekdays
+  # can be concatenated with commas.
+  aide_weekday: '*'
+#
+## Preferred method of logging
+## Whether rsyslog or journald preferred method for local logging
+## Control 6.2.3 | Configure rsyslog
+## Control 6.2.1 | Configure journald
+# This variable governs which logging service should be used, choosing between 'rsyslog'(CIS recommendation)
+# or 'journald'(only one is implemented) will trigger the execution of the associated subsection, as the-best
+# practices are written wholly independent of each other.
+
+## Control 6.2.2.x & 6.2.3.x - Ensure rsyslog is not configured to receive logs from a remote client
+# This variable expresses whether the system is used as a log server or not. If set to:
+#  - 'false', current system will act as a log CLIENT, thus it should NOT receive data from other hosts.
+#  - 'true', current system will act as a log SERVER, enabling centralised log management(by protecting log integrity
+# from local attacks on remote clients)
+amzn2027cis_system_is_log_server: {{ amzn2027cis_system_is_log_server }}
+
+## Control 6.1.2.9 - Ensure rsyslog is configured to send logs to a remote log host
+# This variable governs if 'rsyslog' service should be automatically configured to forward messages to a
+# remote log server. If set to 'false', the configuration of the 'omfwd' plugin, used to provide forwarding
+# over UDP or TCP, will not be performed.
+amzn2027cis_remote_log_server: {{ amzn2027cis_remote_log_server }}
+
+## Control 6.1.2.9 - Ensure rsyslog is configured to send logs to a remote log host
+# This variable configures the value of the 'target' parameter to be configured when enabling
+# forwarding syslog messages to a remote log server, thus configuring the actual FQDN/IP address of the
+# destination server. For this value to be reflected in the configuration, the variable which enables the
+# automatic configuration of rsyslog forwarding must be enabled('amzn2027cis_remote_log_server: {{ amzn2027cis_remote_log_server }}').
+amzn2027cis_remote_log_host: {{ amzn2027cis_remote_log_host }}
+
+## Control 6.1.2.9 - Ensure rsyslog is configured to send logs to a remote log host
+# This variable configures the value of the 'port' parameter to be configured when enabling
+# forwarding syslog messages to a remote log server. The default value for this destination port is 514.
+# For this value to be reflected in the configuration, the variable which enables the
+# automatic configuration of rsyslog forwarding must be enabled('amzn2027cis_remote_log_server: {{ amzn2027cis_remote_log_server }}').
+amzn2027cis_remote_log_port: {{ amzn2027cis_remote_log_port }}
+
+## Control 6.1.2.9 - Ensure rsyslog is configured to send logs to a remote log host
+# This variable configures the value("TCP"/"UDP") of the 'protocol' parameter to be configured when enabling
+# forwarding syslog messages to a remote log server. The default value for the 'omfwd' plug-in is UDP.
+# For this value to be reflected in the configuration, the variable which enables the
+# automatic configuration of rsyslog forwarding must be enabled('amzn2027cis_remote_log_server: {{ amzn2027cis_remote_log_server }}').
+amzn2027cis_remote_log_protocol: {{ amzn2027cis_remote_log_protocol }}
+
+## Control 6.1.2.9 - Ensure rsyslog is configured to send logs to a remote log host
+# This variable governs how often an action is retried(value is passed to 'action.resumeRetryCount' parameter) before
+# it is considered to have failed(that roughly translates to discarded messages). The default value is 0, but
+# when set to "-1"(eternal), this setting would prevent rsyslog from dropping messages when retrying to connect
+# if server is not responding. For this value to be reflected in the configuration, the variable which enables the
+# automatic configuration of rsyslog forwarding must be enabled('amzn2027cis_remote_log_server: {{ amzn2027cis_remote_log_server }}').
+amzn2027cis_remote_log_retrycount: {{ amzn2027cis_remote_log_retrycount }}
+
+## Control 6.1.2.9 - Ensure rsyslog is configured to send logs to a remote log host
+# This variable configures the maximum number of messages that can be hold(value is passed to 'queue.size' parameter).
+# For this value to be reflected in the configuration, the variable which enables the automatic configuration
+# of rsyslog forwarding must be enabled('amzn2027cis_remote_log_server: {{ amzn2027cis_remote_log_server }}').
+amzn2027cis_remote_log_queuesize: {{ amzn2027cis_remote_log_queuesize }}
+amzn2027cis_remote_log_tls: {{ amzn2027cis_remote_log_tls }}
+amzn2027cis_remote_log_tls_cafile: {{ amzn2027cis_remote_log_tls_cafile }}
+amzn2027cis_remote_log_tls_keyfile: '{{ amzn2027cis_remote_log_tls_keyfile }}'
+
+# Section 7 Vars
+
+# 7.1.12 Ensure no files or directories without an owner and a group exist
+amzn2027cis_exclude_unowned_search_path: \( ! -path "/run/user/*" -a ! -path "/proc/*" -a ! -path "*/containerd/*" -a ! -path "*/kubelet/pods/*" -a ! -path "*/kubelet/plugins/*" -a ! -path "/sys/fs/cgroup/memory/*" -a ! -path "/var/*/private/*" \)

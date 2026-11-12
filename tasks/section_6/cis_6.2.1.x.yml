@@ -1,0 +1,191 @@
+---
+
+- name: "6.2.1.1 | PATCH | Ensure auditd packages are installed"
+  when: amzn2027cis_rule_6_2_1_1
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - auditd
+    - rule_6.2.1.1
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-3
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_SI-5
+  block:
+    - name: "6.2.1.1 | PATCH | Ensure auditd packages are installed | Install auditd packages"
+      when: "'audit' not in ansible_facts['packages']"
+      ansible.builtin.package:
+        name: audit
+        state: present
+
+    - name: "6.2.1.1 | PATCH | Ensure auditd packages are installed | Install auditd-lib packages"
+      when: "'audit-libs' not in ansible_facts['packages']"
+      ansible.builtin.package:
+        name: audit-libs
+        state: present
+
+- name: "6.2.1.2 | PATCH | Ensure auditing for processes that start prior to auditd is enabled"
+  when: amzn2027cis_rule_6_2_1_2
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - auditd
+    - grub
+    - NIST800-53R5_AU-2
+    - rule_6.2.1.2
+  block:
+    - name: "6.2.1.2 | AUDIT | Ensure auditing for processes that start prior to auditd is enabled | Count boot entries without audit=1"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grubby --info=ALL | grep '^args=' | grep -cvE '[[:space:]"]audit=1([[:space:]"]|$)'
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      failed_when: discovered_grubby_audit_missing.rc not in [ 0, 1 ]
+      check_mode: false
+      register: discovered_grubby_audit_missing
+
+    - name: "6.2.1.2 | PATCH | Ensure auditing for processes that start prior to auditd is enabled | Grubby update, if needed"
+      when: discovered_grubby_audit_missing.stdout | int > 0
+      ansible.builtin.command: grubby --update-kernel=ALL --args="audit=1"
+      changed_when: true
+      notify: Set reboot required
+
+    - name: "6.2.1.2 | AUDIT | Ensure auditing for processes that start prior to auditd is enabled | Check for /etc/default/grub"
+      ansible.builtin.stat:
+        path: /etc/default/grub
+      register: discovered_audit_default_grub
+
+    - name: "6.2.1.2 | AUDIT | Ensure auditing for processes that start prior to auditd is enabled | Check for GRUB_CMDLINE_LINUX in /etc/default/grub"
+      when: discovered_audit_default_grub.stat.exists
+      ansible.builtin.command: grep -cE '^\s*GRUB_CMDLINE_LINUX=' /etc/default/grub
+      changed_when: false
+      failed_when: discovered_audit_grub_cmdline.rc not in [ 0, 1 ]
+      check_mode: false
+      register: discovered_audit_grub_cmdline
+
+    - name: "6.2.1.2 | PATCH | Ensure auditing for processes that start prior to auditd is enabled | Add GRUB_CMDLINE_LINUX to /etc/default/grub"
+      when:
+        - discovered_audit_default_grub.stat.exists
+        - discovered_audit_grub_cmdline.stdout | int == 0
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        line: 'GRUB_CMDLINE_LINUX="audit=1"'
+        insertafter: '^\s*GRUB_CMDLINE_LINUX_DEFAULT='
+
+    - name: "6.2.1.2 | PATCH | Ensure auditing for processes that start prior to auditd is enabled | Set existing audit value in /etc/default/grub"
+      when: discovered_audit_default_grub.stat.exists
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(\s*GRUB_CMDLINE_LINUX="[^"]*\b)audit=[^\s"]*'
+        replace: '\g<1>audit=1'
+
+    - name: "6.2.1.2 | PATCH | Ensure auditing for processes that start prior to auditd is enabled | Add audit=1 to /etc/default/grub"
+      when: discovered_audit_default_grub.stat.exists
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(\s*GRUB_CMDLINE_LINUX="(?![^"]*\baudit=)[^"]*?)\s*"'
+        replace: '\g<1> audit=1"'
+
+- name: "6.2.1.3 | PATCH | Ensure audit_backlog_limit is configured"
+  when: amzn2027cis_rule_6_2_1_3
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - auditd
+    - grub
+    - rule_6.2.1.3
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_SI-5
+  block:
+    - name: "6.2.1.3 | AUDIT | Ensure audit_backlog_limit is configured | Count boot entries without the required audit_backlog_limit"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grubby --info=ALL | grep '^args=' | awk -v min={{ amzn2027cis_audit_back_log_limit | int }} '{ if (match($0, /audit_backlog_limit=[0-9]+/)) { v = substr($0, RSTART + 20, RLENGTH - 20); if (v + 0 < min) bad++ } else bad++ } END { print bad + 0 }'
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      failed_when: discovered_grubby_backlog_missing.rc != 0
+      check_mode: false
+      register: discovered_grubby_backlog_missing
+
+    - name: "6.2.1.3 | PATCH | Ensure audit_backlog_limit is configured | Grubby update applied"
+      when: discovered_grubby_backlog_missing.stdout | int > 0
+      ansible.builtin.command:
+        cmd: 'grubby --update-kernel=ALL --args="audit_backlog_limit={{ amzn2027cis_audit_back_log_limit }}"'
+      changed_when: true
+      notify: Set reboot required
+
+    - name: "6.2.1.3 | AUDIT | Ensure audit_backlog_limit is configured | Check for /etc/default/grub"
+      ansible.builtin.stat:
+        path: /etc/default/grub
+      register: discovered_backlog_default_grub
+
+    - name: "6.2.1.3 | AUDIT | Ensure audit_backlog_limit is configured | Check for GRUB_CMDLINE_LINUX in /etc/default/grub"
+      when: discovered_backlog_default_grub.stat.exists
+      ansible.builtin.command: grep -cE '^\s*GRUB_CMDLINE_LINUX=' /etc/default/grub
+      changed_when: false
+      failed_when: discovered_backlog_grub_cmdline.rc not in [ 0, 1 ]
+      check_mode: false
+      register: discovered_backlog_grub_cmdline
+
+    - name: "6.2.1.3 | PATCH | Ensure audit_backlog_limit is configured | Add GRUB_CMDLINE_LINUX to /etc/default/grub"
+      when:
+        - discovered_backlog_default_grub.stat.exists
+        - discovered_backlog_grub_cmdline.stdout | int == 0
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        line: 'GRUB_CMDLINE_LINUX="audit_backlog_limit={{ amzn2027cis_audit_back_log_limit }}"'
+        insertafter: '^\s*GRUB_CMDLINE_LINUX_DEFAULT='
+
+    - name: "6.2.1.3 | AUDIT | Ensure audit_backlog_limit is configured | Get value from /etc/default/grub"
+      when: discovered_backlog_default_grub.stat.exists
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Po '^\s*GRUB_CMDLINE_LINUX="[^"]*\baudit_backlog_limit=\K\d+' /etc/default/grub | head -n 1
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_backlog_default_grub_value
+
+    - name: "6.2.1.3 | PATCH | Ensure audit_backlog_limit is configured | Update value in /etc/default/grub"
+      when:
+        - discovered_backlog_default_grub.stat.exists
+        - discovered_backlog_default_grub_value.stdout | length > 0
+        - discovered_backlog_default_grub_value.stdout | int < amzn2027cis_audit_back_log_limit | int
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(\s*GRUB_CMDLINE_LINUX="[^"]*\b)audit_backlog_limit=\d+'
+        replace: '\g<1>audit_backlog_limit={{ amzn2027cis_audit_back_log_limit }}'
+
+    - name: "6.2.1.3 | PATCH | Ensure audit_backlog_limit is configured | Add value to /etc/default/grub"
+      when:
+        - discovered_backlog_default_grub.stat.exists
+        - discovered_backlog_default_grub_value.stdout | length == 0
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '^(\s*GRUB_CMDLINE_LINUX="(?![^"]*\baudit_backlog_limit=)[^"]*?)\s*"'
+        replace: '\g<1> audit_backlog_limit={{ amzn2027cis_audit_back_log_limit }}"'
+
+- name: "6.2.1.4 | PATCH | Ensure auditd service is enabled and active"
+  when: amzn2027cis_rule_6_2_1_4
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - auditd
+    - rule_6.2.1.4
+    - NIST800-53R5_AU-2
+    - NIST800-53R5_AU-12
+    - NIST800-53R5_SI-5
+  ansible.builtin.systemd:
+    name: auditd
+    masked: false
+    state: started
+    enabled: true

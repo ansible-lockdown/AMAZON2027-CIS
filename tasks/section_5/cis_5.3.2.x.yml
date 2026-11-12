@@ -1,0 +1,224 @@
+---
+
+- name: "5.3.2.1 | PATCH | Ensure PAM is managed by an active authselect profile"
+  when:
+    - amzn2027cis_rule_5_3_2_1
+    - amzn2027cis_disruption_high
+    - amzn2027cis_allow_authselect_updates
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - authselect
+    - rule_5.3.2.1
+    - NIST800-53R5_IA-5
+  block:
+    - name: "5.3.2.1 | PATCH | Ensure PAM is managed by an active authselect profile | Create custom profiles"
+      when:
+        - amzn2027cis_authselect_custom_profile_create
+        - amzn2027cis_authselect_custom_profile_name not in prelim_authselect_profile_list.stdout
+      ansible.builtin.command: "/usr/bin/authselect create-profile {{ amzn2027cis_authselect_custom_profile_name }} -b {{ amzn2027cis_authselect_default_profile_to_copy }}"
+      changed_when: false
+      args:
+        creates: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}"
+
+    - name: "5.3.2.1 | AUDIT | Ensure PAM is managed by an active authselect profile | Get current profile"
+      ansible.builtin.command: /usr/bin/authselect current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_authselect_current
+
+    - name: "5.3.2.1 | AUDIT | Ensure PAM is managed by an active authselect profile | Check configuration is consistent with the profile"
+      ansible.builtin.command: /usr/bin/authselect check
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_authselect_check
+
+    - name: "5.3.2.1 | PATCH | Ensure PAM is managed by an active authselect profile | Backup and Add pam modules"
+      when: >-
+        discovered_authselect_current.rc != 0 or
+        discovered_authselect_check.rc != 0 or
+        'Profile ID: custom/' ~ amzn2027cis_authselect_custom_profile_name not in discovered_authselect_current.stdout or
+        (discovered_authselect_wanted_features | difference(discovered_authselect_current.stdout_lines | map('regex_replace', '^-\\s*', '') | map('trim') | list) | length > 0)
+      vars:
+        discovered_authselect_wanted_features: "{{ (['with-faillock'] if amzn2027cis_rule_5_3_2_2 else []) + (['without-nullok'] if amzn2027cis_rule_5_3_3_4_1 else []) }}"
+      ansible.builtin.command: "/usr/bin/authselect select custom/{{ amzn2027cis_authselect_custom_profile_name }}{% if amzn2027cis_rule_5_3_2_2 %} with-faillock{% endif %}{% if amzn2027cis_rule_5_3_3_4_1 %} without-nullok{% endif %} --force --backup=amzn2027cis-preremediate-{{ lookup('pipe', 'date +%Y-%m-%d-%H%M') }}"
+      changed_when: true
+
+- name: "5.3.2.2 | PATCH | Ensure pam_faillock module is enabled"
+  when:
+    - amzn2027cis_rule_5_3_2_2
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - authselect
+    - NIST800-53R5_AC-7
+    - rule_5.3.2.2
+  block:
+    - name: "5.3.2.2 | AUDIT | Ensure pam_faillock module is enabled | Get current config authselect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.command: /usr/bin/authselect current
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      register: discovered_authselect_current_faillock
+
+    - name: "5.3.2.2 | PATCH | Ensure pam_faillock module is enabled | Enable feature on the active profile"
+      when:
+        - amzn2027cis_allow_authselect_updates
+        - discovered_authselect_current_faillock.rc == 0
+        - "'with-faillock' not in discovered_authselect_current_faillock.stdout"
+      ansible.builtin.command: /usr/bin/authselect enable-feature with-faillock
+      changed_when: true
+      notify: Authselect update
+
+    - name: "5.3.2.2 | PATCH | Ensure pam_faillock module is enabled | Add lines system-auth"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.lineinfile:
+        path: "/etc/pam.d/system-auth"
+        regexp: "{{ item.regexp }}"
+        insertbefore: "{{ item.before | default(omit) }}"
+        insertafter: "{{ item.after | default(omit) }}"
+        line: "{{ item.line }}"
+      loop:
+        - regexp: "auth\\s+required\\s+pam_faillock.so\\s+preauth"
+          after:  "auth\\s+required\\s+pam_env.so" # yamllint disable-line rule:colons
+          line:   "auth        required      pam_faillock.so preauth silent" # yamllint disable-line rule:colons
+        - regexp: "auth\\s+required\\s+pam_faillock.so\\s+authfail"
+          before: "auth\\s+required\\s+pam_deny.so"
+          line:   "auth        required      pam_faillock.so authfail" # yamllint disable-line rule:colons
+        - regexp: "account\\s+required\\s+pam_faillock.so"
+          before: "account\\s+required\\s+pam_unix.so"
+          line:   "account     required      pam_faillock.so" # yamllint disable-line rule:colons
+
+    - name: "5.3.2.2 | PATCH | Ensure pam_faillock module is enabled | Add lines password-auth"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.lineinfile:
+        path: "/etc/pam.d/password-auth"
+        regexp: "{{ item.regexp }}"
+        insertbefore: "{{ item.before | default(omit) }}"
+        insertafter: "{{ item.after | default(omit) }}"
+        line: "{{ item.line }}"
+      loop:
+        - regexp: "auth\\s+required\\s+pam_faillock.so\\s+preauth"
+          after:  "auth\\s+required\\s+pam_env.so" # yamllint disable-line rule:colons
+          line:   "auth        required      pam_faillock.so preauth silent" # yamllint disable-line rule:colons
+        - regexp: "auth\\s+required\\s+pam_faillock.so\\s+authfail"
+          before: "auth\\s+required\\s+pam_deny.so"
+          line:   "auth        required      pam_faillock.so authfail" # yamllint disable-line rule:colons
+        - regexp: "account\\s+required\\s+pam_faillock.so"
+          before: "account\\s+required\\s+pam_unix.so"
+          line:   "account     required      pam_faillock.so" # yamllint disable-line rule:colons
+
+- name: "5.3.2.3 | PATCH | Ensure pam_pwquality module is enabled"
+  when:
+    - amzn2027cis_rule_5_3_2_3
+    - amzn2027cis_disruption_high
+    - amzn2027cis_allow_authselect_updates
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - authselect
+    - NIST800-53R5_CM-6
+    - rule_5.3.2.3
+  block:
+    - name: "5.3.2.3 | AUDIT | Ensure pam_pwquality module is enabled | Check custom profile templates"
+      ansible.builtin.command: grep -Pc -- '^\s*password\s+\S+\s+pam_pwquality\.so\b' /etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/system-auth /etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/password-auth
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_pam_pwquality_lines.rc not in [ 0, 1, 2 ]
+      register: discovered_pam_pwquality_lines
+
+    - name: "5.3.2.3 | PATCH | Ensure pam_pwquality module is enabled | Add pam_pwquality to the custom profile"
+      ansible.builtin.lineinfile:
+        path: "{{ item.split(':') | first }}"
+        line: "password    requisite                                    pam_pwquality.so"
+        insertbefore: '^\s*password\s+\S+\s+pam_unix\.so\b'
+        firstmatch: true
+      loop: "{{ discovered_pam_pwquality_lines.stdout_lines | select('search', ':0$') | list }}"
+      notify: Authselect update
+
+- name: "5.3.2.4 | PATCH | Ensure pam_pwhistory module is enabled"
+  when:
+    - amzn2027cis_rule_5_3_2_4
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - NIST800-53R5_IA-5
+    - authselect
+    - rule_5.3.2.4
+  vars:
+    discovered_pwhistory_pam_dir: "{{ ('/etc/authselect/custom/' ~ amzn2027cis_authselect_custom_profile_name) if amzn2027cis_allow_authselect_updates else '/etc/pam.d' }}"
+    discovered_pwhistory_pam_line: "password    requisite                                    pam_pwhistory.so{{ (' remember=' ~ amzn2027cis_pamd_pwhistory_remember) if amzn2027cis_rule_5_3_3_3_1 else '' }}{{ ' enforce_for_root' if amzn2027cis_rule_5_3_3_3_2 else '' }} use_authtok"
+  block:
+    - name: "5.3.2.4 | AUDIT | Ensure pam_pwhistory module is enabled | Check PAM files"
+      ansible.builtin.command: grep -Pc -- '^\s*password\s+\S+\s+pam_pwhistory\.so\b' {{ discovered_pwhistory_pam_dir }}/system-auth {{ discovered_pwhistory_pam_dir }}/password-auth
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_pam_pwhistory_lines.rc not in [ 0, 1, 2 ]
+      register: discovered_pam_pwhistory_lines
+
+    - name: "5.3.2.4 | PATCH | Ensure pam_pwhistory module is enabled | Add pam_pwhistory to the custom profile"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.lineinfile:
+        path: "{{ item.split(':') | first }}"
+        line: "{{ discovered_pwhistory_pam_line }}"
+        insertbefore: '^\s*password\s+\S+\s+pam_unix\.so\b'
+        firstmatch: true
+      loop: "{{ discovered_pam_pwhistory_lines.stdout_lines | select('search', ':0$') | list }}"
+      notify: Authselect update
+
+    - name: "5.3.2.4 | PATCH | Ensure pam_pwhistory module is enabled | Add pam_pwhistory to pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.lineinfile:
+        path: "{{ item.split(':') | first }}"
+        line: "{{ discovered_pwhistory_pam_line }}"
+        insertbefore: '^\s*password\s+\S+\s+pam_unix\.so\b'
+        firstmatch: true
+      loop: "{{ discovered_pam_pwhistory_lines.stdout_lines | select('search', ':0$') | list }}"
+
+- name: "5.3.2.5 | AUDIT | Ensure pam_unix module is enabled"
+  when: amzn2027cis_rule_5_3_2_5
+  tags:
+    - level1-server
+    - automated
+    - audit
+    - NIST800-53R5_IA-5
+    - authselect
+    - rule_5.3.2.5
+  block:
+    - name: "5.3.2.5 | AUDIT | Ensure pam_unix module is enabled | Find missing pam_unix stack entries"
+      ansible.builtin.shell: |
+        set -o pipefail
+        for l_file in /etc/pam.d/system-auth /etc/pam.d/password-auth; do
+          for l_type in auth account password session; do
+            grep -Pq -- "^\h*${l_type}\h+\H+\h+pam_unix\.so\b" "$l_file" || echo "$l_file:$l_type"
+          done
+        done
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      register: discovered_pam_unix_missing
+
+    - name: "5.3.2.5 | AUDIT | Ensure pam_unix module is enabled | Warn if pam_unix entries are missing"
+      when: discovered_pam_unix_missing.stdout | length > 0
+      ansible.builtin.debug:
+        msg:
+          - "Warning!! pam_unix.so is missing from these PAM stacks"
+          - "{{ discovered_pam_unix_missing.stdout_lines }}"
+          - "Restore the entries in the active authselect profile templates and run authselect apply-changes"
+
+    - name: "5.3.2.5 | AUDIT | Ensure pam_unix module is enabled | Warn count"
+      when: discovered_pam_unix_missing.stdout | length > 0
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '5.3.2.5'

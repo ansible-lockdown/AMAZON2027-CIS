@@ -1,0 +1,123 @@
+---
+
+###
+### Settings for associated Audit role using Syver
+###
+
+###########################################
+### Syver is required on the remote host ###
+### see below for other audit settings ###
+
+# Allow audit to setup the requirements including installing git (if option chosen and downloading and adding the syver binary to system)
+setup_audit: false
+
+# enable audits to run - this runs the audit and get the latest content
+run_audit: false
+# Run heavy tests - some tests can have more impact on a system enabling these can have greater impact on a system
+audit_run_heavy_tests: true
+
+## Only run Audit do not remediate
+audit_only: false
+
+#############################
+
+# How to retrieve audit binary
+# Options are copy or download - detailed settings at the bottom of this file
+# you will need to access to either github or the file already downloaded
+get_audit_binary_method: download
+
+## if get_audit_binary_method - copy the following needs to be updated for your environment
+## it is expected that it will be copied from somewhere accessible to the control node
+## e.g copy from ansible control node to remote host
+audit_bin_copy_location: /some/accessible/path
+
+# Ability to limit the number of concurrent processes used by the audit binary (syver) (default 50)
+audit_max_concurrent: 50
+
+# how to get audit files onto host options
+# options are git/copy/archive/get_url other e.g. if you wish to run from already downloaded conf
+audit_content: git
+
+# If using either archive, copy, get_url:
+## Note will work with .tar files - zip will require extra configuration
+### If using get_url this is expecting github url in tar.gz format e.g.
+### https://github.com/ansible-lockdown/AMAZON2027-CIS-Audit/archive/refs/heads/benchmark-v1.0.0.tar.gz
+audit_conf_source: some path or url to copy from
+
+# Destination for the audit content to be placed on managed node
+# note may not need full path e.g. /opt with the directory being the {{ benchmark }}-Audit directory
+audit_conf_dest: /opt
+
+# Where the audit logs are stored
+audit_log_dir: /opt
+
+## Ability to collect and take audit files moving to a centralized location
+# This enables the collection of the files from the host
+fetch_audit_output: false
+
+# Method of getting,uploading the summary files
+## Ensure access and permissions are available for these to occur.
+## options are
+# fetch - fetches from server and moves to location on the ansible controller (could be a mount point available to controller)
+# copy - copies file to a location available to the managed node
+audit_output_collection_method: fetch
+
+# Location to put the audit files
+audit_output_destination: /opt/audit_summaries/
+
+### Audit Settings ##
+####### END  ########
+
+#### Audit Configuration Settings  ####
+
+# Timeout for those cmds that take longer to run where timeout set
+audit_cmd_timeout: 120000
+
+# if get_audit_binary_method == download change accordingly
+# Syver (https://github.com/krameff/syver) is the audit binary - signed and regularly updated
+audit_bin_release_url: "https://github.com/krameff/syver/releases/download/{{ audit_bin_version.release }}/"
+audit_bin_url: "{{ audit_bin_release_url }}syver-linux-"
+
+# Optional: verify the release signature before the binary is downloaded (off by default).
+# When true the role downloads the release SHA256SUMS, its .sig and the signing key from audit_bin_release_url,
+# verifies the signature with gpg (gnupg2-minimal, part of the base OS) against the fingerprint below, and checks
+# the signed file lists the pinned checksum. If audit_bin_url points at a mirror, mirror these files too.
+audit_bin_verify_signature: false
+audit_bin_signing_key_fingerprint: CD218D529C95DC65A71F18D84C9E5095CABE5092  # pragma: allowlist secret gitleaks:allow
+audit_bin_signing_key_file: krameff-syver-key.asc
+audit_bin_sums_file: "syver_{{ audit_bin_version.release | regex_replace('^v', '') }}_SHA256SUMS"
+
+### Audit Benchmark content ###
+## managed by the control audit_content
+# git
+audit_file_git: https://github.com/ansible-lockdown/{{ benchmark }}-Audit.git
+audit_git_version: benchmark_{{ benchmark_version }}
+
+## Audit configuration information
+# Where the audit configuration will be stored - NOTE benchmark-audit is expected
+audit_conf_dir: "{{ audit_conf_dest | default('/opt') }}/{{ benchmark }}-Audit"
+
+# If changed these can affect other products
+pre_audit_outfile: '{{ audit_log_dir }}/{{ ansible_facts["hostname"] }}-{{ benchmark }}-{{ benchmark_version }}_pre_scan_{{ ansible_facts["date_time"]["epoch"] }}.{{ audit_format }}'
+post_audit_outfile: '{{ audit_log_dir }}/{{ ansible_facts["hostname"] }}-{{ benchmark }}-{{ benchmark_version }}_post_scan_{{ ansible_facts["date_time"]["epoch"] }}.{{ audit_format }}'
+
+## The following should not need changing
+
+### Audit binary settings  ###
+# Depending on the method of getting the audit content you may need to validate certs if using git or get_url
+# note is self hosted you may not have the cert chain installed so may need to set to false - this is not recommended but may be required in some environments
+audit_bin_validate_certs: true
+audit_bin_version:
+  release: v0.16.0
+  AMD64_checksum: 'sha256:2b1cba854e8cf912e11b38dab3d0241c109728ee4d30345824067ef417a2a720'
+  ARM64_checksum: 'sha256:dd35d056379ab1e1cb425b83fc8edc43bad1c87573505d50fb44602a59caab5d'
+audit_bin_path: /usr/local/bin/
+audit_bin: '{{ audit_bin_path }}syver'
+audit_format: json
+
+audit_vars_path: '{{ audit_conf_dir }}/vars/{{ ansible_facts["hostname"] }}.yml'
+audit_results: |-
+  The{% if not audit_only %} pre remediation{% endif %} audit results are: {{ pre_audit_results }}
+  {% if not audit_only %}The post remediation audit results are: {{ post_audit_results }}{% endif %}
+
+  Full breakdown can be found in {{ audit_log_dir }}

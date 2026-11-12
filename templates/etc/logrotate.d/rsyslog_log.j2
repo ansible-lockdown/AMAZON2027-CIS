@@ -1,0 +1,38 @@
+{{ file_managed_by_ansible }}
+# Logs written by the rsyslog rules the role adds (6.1.2.8) and the Amazon Linux default
+# local7.* rule; /etc/logrotate.d/rsyslog does not rotate them
+/var/log/boot.log
+/var/log/localmessages
+/var/log/mail
+/var/log/mail.info
+/var/log/mail.warning
+/var/log/mail.err
+/var/log/warn
+/var/log/news/news.crit
+{
+    {{ amzn2027cis_rsyslog_logrotate_rotated_when }}
+    rotate {{ amzn2027cis_rsyslog_logrotate_rotatation_keep }}
+{% if amzn2027cis_rsyslog_logrotate_compress %}
+    compress
+{% else %}
+    nocompress
+{% endif %}
+{% if amzn2027cis_rsyslog_logrotate_missingok %}
+    missingok
+{% else %}
+    nomissingok
+{% endif %}
+{% if amzn2027cis_rsyslog_logrotate_notifempty %}
+    notifempty
+{% else %}
+    ifempty
+{% endif %}
+{% if amzn2027cis_rsyslog_logrotate_create %}
+    create{% if amzn2027cis_rsyslog_logrotate_create_opts is defined %} {{ amzn2027cis_rsyslog_logrotate_create_opts }}{% endif %}
+{% endif %}
+
+    sharedscripts
+    postrotate
+        /usr/bin/systemctl kill -s HUP rsyslog.service >/dev/null 2>&1 || true
+    endscript
+}

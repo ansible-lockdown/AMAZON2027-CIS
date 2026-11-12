@@ -1,0 +1,377 @@
+---
+
+- name: "1.5.1 | PATCH | Ensure fs.protected_hardlinks is configured"
+  when: amzn2027cis_rule_1_5_1
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sysctl
+    - CCI-002165
+    - CCI-002235
+    - NIST800-53R5_AC-3_4
+    - NIST800-53R5_AC-6_10
+    - rule_1.5.1
+  block:
+    - name: "1.5.1 | PATCH | Ensure fs.protected_hardlinks is configured | Set sysctl update"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+
+    - name: "1.5.1 | AUDIT | Ensure fs.protected_hardlinks is configured | Find files setting fs.protected_hardlinks"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Els -- '^[[:space:]]*fs[.]protected_hardlinks[[:space:]]*=' /etc/sysctl.conf /etc/sysctl.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sysctl_fs_protected_hardlinks.rc not in [ 0, 1, 2 ]
+      register: discovered_sysctl_fs_protected_hardlinks
+
+    - name: "1.5.1 | PATCH | Ensure fs.protected_hardlinks is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*fs\.protected_hardlinks[ \t]*=[ \t]*(?![ \t]|1[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_sysctl_fs_protected_hardlinks.stdout_lines }}"
+      notify: Reload sysctl
+
+- name: "1.5.2 | PATCH | Ensure fs.protected_symlinks is configured"
+  when: amzn2027cis_rule_1_5_2
+  tags:
+    - level2-server
+    - automated
+    - patch
+    - sysctl
+    - CCI-002165
+    - CCI-002235
+    - NIST800-53R5_AC-3_4
+    - NIST800-53R5_AC-6_10
+    - rule_1.5.2
+  block:
+    - name: "1.5.2 | PATCH | Ensure fs.protected_symlinks is configured | Set sysctl update"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+
+    - name: "1.5.2 | AUDIT | Ensure fs.protected_symlinks is configured | Find files setting fs.protected_symlinks"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Els -- '^[[:space:]]*fs[.]protected_symlinks[[:space:]]*=' /etc/sysctl.conf /etc/sysctl.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sysctl_fs_protected_symlinks.rc not in [ 0, 1, 2 ]
+      register: discovered_sysctl_fs_protected_symlinks
+
+    - name: "1.5.2 | PATCH | Ensure fs.protected_symlinks is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*fs\.protected_symlinks[ \t]*=[ \t]*(?![ \t]|1[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_sysctl_fs_protected_symlinks.stdout_lines }}"
+      notify: Reload sysctl
+
+- name: "1.5.3 | PATCH | Ensure fs.suid_dumpable is configured"
+  when: amzn2027cis_rule_1_5_3
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sysctl
+    - rule_1.5.3
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.5.3 | PATCH | Ensure fs.suid_dumpable is configured | Set sysctl update"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+
+    - name: "1.5.3 | AUDIT | Ensure fs.suid_dumpable is configured | Find files setting fs.suid_dumpable"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Els -- '^[[:space:]]*fs[.]suid_dumpable[[:space:]]*=' /etc/sysctl.conf /etc/sysctl.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sysctl_fs_suid_dumpable.rc not in [ 0, 1, 2 ]
+      register: discovered_sysctl_fs_suid_dumpable
+
+    - name: "1.5.3 | PATCH | Ensure fs.suid_dumpable is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*fs\.suid_dumpable[ \t]*=[ \t]*(?![ \t]|0[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_sysctl_fs_suid_dumpable.stdout_lines }}"
+      notify: Reload sysctl
+
+- name: "1.5.4 | PATCH | Ensure kernel.dmesg_restrict is configured"
+  when: amzn2027cis_rule_1_5_4
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sysctl
+    - CCI-001082
+    - CCI-001090
+    - NIST800-53R5_SC-2
+    - NIST800-53R5_SC-4
+    - rule_1.5.4
+  block:
+    - name: "1.5.4 | PATCH | Ensure kernel.dmesg_restrict is configured | Set sysctl update"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+
+    - name: "1.5.4 | AUDIT | Ensure kernel.dmesg_restrict is configured | Find files setting kernel.dmesg_restrict"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Els -- '^[[:space:]]*kernel[.]dmesg_restrict[[:space:]]*=' /etc/sysctl.conf /etc/sysctl.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sysctl_kernel_dmesg_restrict.rc not in [ 0, 1, 2 ]
+      register: discovered_sysctl_kernel_dmesg_restrict
+
+    - name: "1.5.4 | PATCH | Ensure kernel.dmesg_restrict is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*kernel\.dmesg_restrict[ \t]*=[ \t]*(?![ \t]|1[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_sysctl_kernel_dmesg_restrict.stdout_lines }}"
+      notify: Reload sysctl
+
+- name: "1.5.5 | PATCH | Ensure kernel.kptr_restrict is configured"
+  when: amzn2027cis_rule_1_5_5
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sysctl
+    - rule_1.5.5
+    - CCI-000366
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.5.5 | PATCH | Ensure kernel.kptr_restrict is configured | Set sysctl update"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+
+    - name: "1.5.5 | AUDIT | Ensure kernel.kptr_restrict is configured | Find files setting kernel.kptr_restrict"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Els -- '^[[:space:]]*kernel[.]kptr_restrict[[:space:]]*=' /etc/sysctl.conf /etc/sysctl.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sysctl_kernel_kptr_restrict.rc not in [ 0, 1, 2 ]
+      register: discovered_sysctl_kernel_kptr_restrict
+
+    - name: "1.5.5 | PATCH | Ensure kernel.kptr_restrict is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*kernel\.kptr_restrict[ \t]*=[ \t]*(?![ \t]|(1|2)[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_sysctl_kernel_kptr_restrict.stdout_lines }}"
+      notify: Reload sysctl
+
+- name: "1.5.6 | PATCH | Ensure kernel.randomize_va_space is configured"
+  when: amzn2027cis_rule_1_5_6
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sysctl
+    - CCI-002824
+    - NIST800-53R5_SI-16
+    - rule_1.5.6
+  block:
+    - name: "1.5.6 | PATCH | Ensure kernel.randomize_va_space is configured | Set sysctl update"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+
+    - name: "1.5.6 | AUDIT | Ensure kernel.randomize_va_space is configured | Find files setting kernel.randomize_va_space"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Els -- '^[[:space:]]*kernel[.]randomize_va_space[[:space:]]*=' /etc/sysctl.conf /etc/sysctl.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sysctl_kernel_randomize_va_space.rc not in [ 0, 1, 2 ]
+      register: discovered_sysctl_kernel_randomize_va_space
+
+    - name: "1.5.6 | PATCH | Ensure kernel.randomize_va_space is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*kernel\.randomize_va_space[ \t]*=[ \t]*(?![ \t]|2[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_sysctl_kernel_randomize_va_space.stdout_lines }}"
+      notify: Reload sysctl
+
+- name: "1.5.7 | PATCH | Ensure kernel.yama.ptrace_scope is configured"
+  when: amzn2027cis_rule_1_5_7
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - sysctl
+    - rule_1.5.7
+    - CCI-000366
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.5.7 | PATCH | Ensure kernel.yama.ptrace_scope is configured | Set sysctl update"
+      ansible.builtin.set_fact:
+        amzn2027cis_sysctl_update: true
+
+    - name: "1.5.7 | AUDIT | Ensure kernel.yama.ptrace_scope is configured | Find files setting kernel.yama.ptrace_scope"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Els -- '^[[:space:]]*kernel[.]yama[.]ptrace_scope[[:space:]]*=' /etc/sysctl.conf /etc/sysctl.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_sysctl_kernel_yama_ptrace_scope.rc not in [ 0, 1, 2 ]
+      register: discovered_sysctl_kernel_yama_ptrace_scope
+
+    - name: "1.5.7 | PATCH | Ensure kernel.yama.ptrace_scope is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*kernel\.yama\.ptrace_scope[ \t]*=[ \t]*(?![ \t]|(1|2|3)[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_sysctl_kernel_yama_ptrace_scope.stdout_lines }}"
+      notify: Reload sysctl
+
+- name: "1.5.8 | PATCH | Ensure core file size is configured"
+  when: amzn2027cis_rule_1_5_8
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - limits
+    - rule_1.5.8
+    - CCI-000366
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.5.8 | AUDIT | Ensure core file size is configured | Find conflicting entries"
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -Pls -- '^[ \t]*[^#\s]+\s+hard\s+core\s+(?!0[ \t]*$)\S+' /etc/security/limits.conf /etc/security/limits.d/*.conf
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      failed_when: discovered_hard_core_limits.rc not in [ 0, 1, 2 ]
+      register: discovered_hard_core_limits
+
+    - name: "1.5.8 | PATCH | Ensure core file size is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: '^([ \t]*[^#\s]+\s+hard\s+core\s+(?!0[ \t]*$)\S+.*)$'
+        replace: '# \1'
+      loop: "{{ discovered_hard_core_limits.stdout_lines }}"
+
+    - name: "1.5.8 | PATCH | Ensure core file size is configured | Set hard core limit"
+      ansible.builtin.lineinfile:
+        path: /etc/security/limits.d/60-limits.conf
+        regexp: '^\s*#?\s*\*\s+hard\s+core\s'
+        line: '* hard core 0'
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+        create: true
+
+- name: "1.5.9 | PATCH | Ensure systemd-coredump ProcessSizeMax is configured"
+  when:
+    - amzn2027cis_rule_1_5_9
+    - prelim_systemd_coredump.stat.exists
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rule_1.5.9
+    - CCI-000366
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.5.9 | PATCH | Ensure systemd-coredump ProcessSizeMax is configured | Drop-in directory"
+      ansible.builtin.file:
+        path: /etc/systemd/coredump.conf.d
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.5.9 | AUDIT | Ensure systemd-coredump ProcessSizeMax is configured | Find conflicting entries"
+      ansible.builtin.find:
+        paths: /etc/systemd/coredump.conf.d
+        patterns: '*.conf'
+        excludes: 60-coredump.conf
+        contains: '[ \t]*ProcessSizeMax[ \t]*=[ \t]*(?![ \t]|0[ \t]*$)'
+      register: discovered_coredump_processsizemax
+
+    - name: "1.5.9 | PATCH | Ensure systemd-coredump ProcessSizeMax is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '^([ \t]*ProcessSizeMax[ \t]*=[ \t]*(?![ \t]|0[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_coredump_processsizemax.files }}"
+
+    - name: "1.5.9 | PATCH | Ensure systemd-coredump ProcessSizeMax is configured | Set ProcessSizeMax"
+      community.general.ini_file:
+        path: /etc/systemd/coredump.conf.d/60-coredump.conf
+        section: Coredump
+        option: ProcessSizeMax
+        value: '0'
+        no_extra_spaces: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+        create: true
+
+- name: "1.5.10 | PATCH | Ensure systemd-coredump Storage is configured"
+  when:
+    - amzn2027cis_rule_1_5_10
+    - prelim_systemd_coredump.stat.exists
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - rule_1.5.10
+    - CCI-000366
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.5.10 | PATCH | Ensure systemd-coredump Storage is configured | Drop-in directory"
+      ansible.builtin.file:
+        path: /etc/systemd/coredump.conf.d
+        owner: root
+        group: root
+        mode: 'go-w'
+        state: directory
+
+    - name: "1.5.10 | AUDIT | Ensure systemd-coredump Storage is configured | Find conflicting entries"
+      ansible.builtin.find:
+        paths: /etc/systemd/coredump.conf.d
+        patterns: '*.conf'
+        excludes: 60-coredump.conf
+        contains: '[ \t]*Storage[ \t]*=[ \t]*(?![ \t]|none[ \t]*$)'
+      register: discovered_coredump_storage
+
+    - name: "1.5.10 | PATCH | Ensure systemd-coredump Storage is configured | Comment out conflicting entries"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '^([ \t]*Storage[ \t]*=[ \t]*(?![ \t]|none[ \t]*$).*)$'
+        replace: '# \1'
+      loop: "{{ discovered_coredump_storage.files }}"
+
+    - name: "1.5.10 | PATCH | Ensure systemd-coredump Storage is configured | Set Storage"
+      community.general.ini_file:
+        path: /etc/systemd/coredump.conf.d/60-coredump.conf
+        section: Coredump
+        option: Storage
+        value: none
+        no_extra_spaces: true
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+        create: true

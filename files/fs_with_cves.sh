@@ -1,0 +1,86 @@
+#! /usr/bin/env bash
+
+# CIS 1.1.1.11 - Ensure unused filesystems kernel modules are not available
+# Combines the two CIS v3.0.0 audit scripts: step 2 (list every filesystem kernel module
+# installed, all kernels, nls excluded) and the audit script (mounted / loaded / loadable),
+# and flags modules with known CVEs.
+# Beyond the CIS scripts: nested module directories are searched (e.g. smb/client/cifs.ko),
+# the CVE list matches a module or its fs directory, and a loaded module that a mounted
+# module depends on (e.g. jbd2 for ext4) is reported as a dependency, not as unused.
+# CVE list correct at time of creation - April2024
+#
+# Exit codes: 0 nothing to review, 99 a module is loaded or loadable and needs review
+
+{
+   a_cve_exists=("afs" "ceph" "cifs" "exfat" "ext" "fat" "fscache" "fuse" "gfs2" "nfs_common" "nfsd" "smbfs_common")
+   declare -A A_MOUNTED=() A_LOADED=() A_USEDBY=() A_CVE=() A_SEEN=() A_DIR=()
+   a_module=(); a_mounted_out=(); a_loaded_out=(); a_loadable_out=()
+
+   for l_cve in "${a_cve_exists[@]}"; do A_CVE["$l_cve"]=1; done
+
+   # filesystem types currently mounted
+   while IFS= read -r l_fstype; do
+      [ -n "$l_fstype" ] && A_MOUNTED["${l_fstype//-/_}"]=1
+   done < <(findmnt -Dkerno fstype | sort -u)
+
+   # modules currently loaded
+   while read -r l_lsmod _ _ l_usedby; do
+      A_LOADED["$l_lsmod"]=1
+      A_USEDBY["$l_lsmod"]="${l_usedby//,/ }"
+   done < <(lsmod | awk 'NR>1 {print $1, $2, $3, $4}')
+
+   # modprobe deny list / install configuration
+   l_showconfig="$(modprobe --showconfig | grep -Pi -- '^\h*(blacklist|install)\h+')"
+
+   # CIS step 2: every filesystem kernel module in every installed kernel, nls excluded
+   l_search="$(readlink -e /usr/lib/modules/ || readlink -e /lib/modules/)"
+   while IFS= read -r -d $'\0' l_module_dir; do
+      l_dir="$(basename "$l_module_dir")"
+      [ "$l_dir" = "nls" ] && continue
+      while IFS= read -r -d $'\0' l_module_file; do
+         l_mname="$(basename "$l_module_file" | cut -d'.' -f1)"
+         if [ -z "${A_SEEN[$l_mname]}" ]; then
+            A_SEEN["$l_mname"]=1
+            A_DIR["$l_mname"]="$l_dir"
+            a_module+=("$l_mname")
+         fi
+      done < <(find -L "$l_module_dir" -mindepth 1 -type f -name '*.ko*' -print0)
+   done < <(find "$l_search"/*/kernel/fs/ -mindepth 1 -maxdepth 1 -type d ! -empty -print0 2>/dev/null)
+
+   # CIS audit script: classify each module
+   for l_module in "${a_module[@]}"; do
+      l_mod="${l_module//-/_}"
+      l_cve=""; [ -n "${A_CVE[$l_mod]}${A_CVE[${A_DIR[$l_module]}]}" ] && l_cve=" <- CVE exists!"
+      l_dep=""
+      for l_user in ${A_USEDBY[$l_mod]}; do
+         [ -n "${A_MOUNTED[$l_user]}" ] && l_dep="$l_user"
+      done
+      if [ -n "${A_MOUNTED[$l_mod]}" ]; then
+         a_mounted_out+=("  - \"$l_module\" is mounted - do NOT unload or disable$l_cve")
+      elif [ -n "$l_dep" ]; then
+         a_mounted_out+=("  - \"$l_module\" is loaded as a dependency of mounted \"$l_dep\" - do NOT unload or disable$l_cve")
+      elif [ -n "${A_LOADED[$l_mod]}" ]; then
+         a_loaded_out+=("  - \"$l_module\" is loaded but not mounted$l_cve")
+      elif ! grep -Psiq -- '\binstall\h+'"$l_mod"'\h+\H+' <<< "$l_showconfig" || \
+           ! grep -Psiq -- '\bblacklist\h+'"$l_mod"'\b' <<< "$l_showconfig"; then
+         a_loadable_out+=("  - \"$l_module\" is loadable - not deny listed and set to /bin/false$l_cve")
+      fi
+   done
+
+   # Output findings
+   echo "### Script can be found at ${BASH_SOURCE} ##"
+   echo "  - ${#a_module[@]} filesystem kernel modules installed"
+   [ "${#a_mounted_out[@]}" -gt 0 ] && printf '%s\n' "" \
+      "-- ${#a_mounted_out[@]} kernel modules in use by mounted filesystems (excluded): --" "${a_mounted_out[@]}"
+   if [ "$(( ${#a_loaded_out[@]} + ${#a_loadable_out[@]} ))" -eq 0 ]; then
+      printf '%s\n' "" "  - No unused filesystem kernel modules are loaded or loadable" ""
+      exit 0
+   fi
+   printf '%s\n' "" "-- Audit Result: --" "  ** REVIEW the following against local site policy **"
+   [ "${#a_loaded_out[@]}" -gt 0 ] && printf '%s\n' "" \
+      "-- ${#a_loaded_out[@]} kernel modules currently loaded: --" "${a_loaded_out[@]}"
+   [ "${#a_loadable_out[@]}" -gt 0 ] && printf '%s\n' "" \
+      "-- ${#a_loadable_out[@]} kernel modules currently loadable: --" "${a_loadable_out[@]}"
+   printf '%s\n' "" "WARNING: disabling or denylisting filesystem modules that are in use on the system may be FATAL." ""
+   exit 99
+}

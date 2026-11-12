@@ -1,0 +1,102 @@
+---
+
+- name: "5.3.3.3.1 | PATCH | Ensure password history remember is configured"
+  when:
+    - amzn2027cis_rule_5_3_3_3_1
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - NIST800-53R5_IA-5
+    - rule_5.3.3.3.1
+    - pam
+  vars:
+    discovered_pwhistory_remember_edits:
+      - regexp: ^(\s*password\s+\S+\s+pam_pwhistory\.so\b.*?\s)remember\s*=\s*\S+
+        replace: \g<1>remember={{ amzn2027cis_pamd_pwhistory_remember }}
+      - regexp: ^(\s*password\s+\S+\s+pam_pwhistory\.so\b)(?!.*\bremember\s*=)(.*)$
+        replace: \1 remember={{ amzn2027cis_pamd_pwhistory_remember }}\2
+  block:
+    - name: "5.3.3.3.1 | PATCH | Ensure password history remember is configured | Set remember in pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item.0 }}-auth"
+        regexp: "{{ item.1.regexp }}"
+        replace: "{{ item.1.replace }}"
+      loop: "{{ ['password', 'system'] | product(discovered_pwhistory_remember_edits) | list }}"
+
+    - name: "5.3.3.3.1 | PATCH | Ensure password history remember is configured | Set remember in pam files AuthSelect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item.0 }}-auth"
+        regexp: "{{ item.1.regexp }}"
+        replace: "{{ item.1.replace }}"
+      loop: "{{ ['password', 'system'] | product(discovered_pwhistory_remember_edits) | list }}"
+      notify: Authselect update
+
+- name: "5.3.3.3.2 | PATCH | Ensure password history is enforced for the root user"
+  when:
+    - amzn2027cis_rule_5_3_3_3_2
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - NIST800-53R5_IA-5
+    - rule_5.3.3.3.2
+    - pam
+  block:
+    - name: "5.3.3.3.2 | PATCH | Ensure password history is enforced for the root user | pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*password\s+\S+\s+pam_pwhistory\.so\b)(?!.*\benforce_for_root\b)(.*)$
+        replace: \1 enforce_for_root\2
+      loop:
+        - password
+        - system
+
+    - name: "5.3.3.3.2 | PATCH | Ensure password history is enforced for the root user | pam files AuthSelect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item }}-auth"
+        regexp: ^(\s*password\s+\S+\s+pam_pwhistory\.so\b)(?!.*\benforce_for_root\b)(.*)$
+        replace: \1 enforce_for_root\2
+      loop:
+        - password
+        - system
+      notify: Authselect update
+
+- name: "5.3.3.3.3 | PATCH | Ensure pam_pwhistory includes use_authtok"
+  when:
+    - amzn2027cis_rule_5_3_3_3_3
+    - amzn2027cis_disruption_high
+  tags:
+    - level1-server
+    - automated
+    - patch
+    - NIST800-53R5_IA-5
+    - rule_5.3.3.3.3
+    - pam
+  block:
+    - name: "5.3.3.3.3 | PATCH | Ensure pam_pwhistory includes use_authtok | pam files NOT AuthSelect"
+      when: not amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/pam.d/{{ item }}-auth"
+        regexp: ^(\s*password\s+\S+\s+pam_pwhistory\.so\b)(?!.*\buse_authtok\b)(.*)$
+        replace: \1 use_authtok\2
+      loop:
+        - password
+        - system
+
+    - name: "5.3.3.3.3 | PATCH | Ensure pam_pwhistory includes use_authtok | pam files AuthSelect"
+      when: amzn2027cis_allow_authselect_updates
+      ansible.builtin.replace:
+        path: "/etc/authselect/custom/{{ amzn2027cis_authselect_custom_profile_name }}/{{ item }}-auth"
+        regexp: ^(\s*password\s+\S+\s+pam_pwhistory\.so\b)(?!.*\buse_authtok\b)(.*)$
+        replace: \1 use_authtok\2
+      loop:
+        - password
+        - system
+      notify: Authselect update

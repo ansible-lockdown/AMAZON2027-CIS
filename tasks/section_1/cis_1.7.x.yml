@@ -1,0 +1,166 @@
+---
+
+- name: "1.7.1 | PATCH | Ensure /etc/motd is configured"
+  when: amzn2027cis_rule_1_7_1
+  tags:
+    - level1-server
+    - automated
+    - banner
+    - patch
+    - rule_1.7.1
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-3
+    - NIST800-53R5_CM-6
+  block:
+    - name: "1.7.1 | PATCH | Ensure /etc/motd is configured | Disable update-motd regeneration"
+      when: "'update-motd' in ansible_facts['packages']"
+      ansible.builtin.command: update-motd --disable
+      args:
+        creates: /var/lib/update-motd/disabled
+
+    - name: "1.7.1 | PATCH | Ensure /etc/motd is configured | motd"
+      ansible.builtin.template:
+        src: etc/motd.j2
+        dest: /etc/motd
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+
+    - name: "1.7.1 | AUDIT | Ensure /etc/motd is configured | Find vendor motd.d files with system information"
+      ansible.builtin.shell: |
+        set -o pipefail
+        l_os="$(grep -Po '^ID="?\K[^"]+' /etc/os-release)|$(grep -Po '^NAME="?\K[^"]+' /etc/os-release)"
+        for l_file in /run/motd.d/* /usr/lib/motd.d/*; do
+          [ -f "$l_file" ] || continue
+          [ -e "/etc/motd.d/$(basename "$l_file")" ] && continue
+          if grep -Psiq -- '(\\[mrsv]|\b('"$l_os"')\b)' "$l_file"; then basename "$l_file"; fi
+        done | sort -u
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      register: discovered_motd_vendor_sysinfo
+
+    - name: "1.7.1 | PATCH | Ensure /etc/motd is configured | Override vendor motd.d files with system information"
+      ansible.builtin.copy:
+        content: ''
+        dest: "/etc/motd.d/{{ item }}"
+        owner: root
+        group: root
+        mode: 'u-x,go-wx'
+      loop: "{{ discovered_motd_vendor_sysinfo.stdout_lines }}"
+
+    - name: "1.7.1 | AUDIT | Ensure /etc/motd is configured | Check motd files for system information"
+      ansible.builtin.shell: |
+        set -o pipefail
+        l_os="$(grep -Po '^ID="?\K[^"]+' /etc/os-release)|$(grep -Po '^NAME="?\K[^"]+' /etc/os-release)"
+        for l_file in /etc/motd /run/motd /usr/lib/motd /etc/motd.d/* /run/motd.d/* /usr/lib/motd.d/*; do
+          [ -f "$l_file" ] || continue
+          l_name="$(basename "$l_file")"
+          case "$l_file" in
+            /run/motd.d/*) [ -e "/etc/motd.d/$l_name" ] && continue ;;
+            /usr/lib/motd.d/*) { [ -e "/etc/motd.d/$l_name" ] || [ -e "/run/motd.d/$l_name" ]; } && continue ;;
+          esac
+          grep -Psil -- '(\\[mrsv]|\b('"$l_os"')\b)' "$l_file" || true
+        done
+      args:
+        executable: "{{ amzn2027cis_shell_executable }}"
+      changed_when: false
+      check_mode: false
+      register: discovered_motd_d_sysinfo
+
+    - name: "1.7.1 | AUDIT | Ensure /etc/motd is configured | Warn if motd files contain system information"
+      when: discovered_motd_d_sysinfo.stdout | length > 0
+      ansible.builtin.debug:
+        msg: "{{ ['Warning!! The following message of the day files contain OS information or escape sequences. Review against site policy'] + discovered_motd_d_sysinfo.stdout_lines }}"
+
+    - name: "1.7.1 | AUDIT | Ensure /etc/motd is configured | Capture warning"
+      when: discovered_motd_d_sysinfo.stdout | length > 0
+      ansible.builtin.import_tasks:
+        file: warning_facts.yml
+      vars:
+        warn_control_id: '1.7.1'
+
+- name: "1.7.2 | PATCH | Ensure /etc/issue is configured"
+  when: amzn2027cis_rule_1_7_2
+  tags:
+    - level1-server
+    - automated
+    - banner
+    - patch
+    - rule_1.7.2
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-3
+    - NIST800-53R5_CM-6
+  ansible.builtin.template:
+    src: etc/issue.j2
+    dest: /etc/issue
+    owner: root
+    group: root
+    mode: 'go-wx'
+
+- name: "1.7.3 | PATCH | Ensure /etc/issue.net is configured"
+  when: amzn2027cis_rule_1_7_3
+  tags:
+    - level1-server
+    - automated
+    - banner
+    - patch
+    - rule_1.7.3
+    - NIST800-53R5_CM-1
+    - NIST800-53R5_CM-3
+    - NIST800-53R5_CM-6
+  ansible.builtin.template:
+    src: etc/issue.net.j2
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: 'go-wx'
+
+- name: "1.7.4 | PATCH | Ensure access to /etc/motd is configured"
+  when: amzn2027cis_rule_1_7_4
+  tags:
+    - level1-server
+    - automated
+    - perms
+    - patch
+    - rule_1.7.4
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.file:
+    path: /etc/motd
+    owner: root
+    group: root
+    mode: 'go-wx'
+
+- name: "1.7.5 | PATCH | Ensure access to /etc/issue is configured"
+  when: amzn2027cis_rule_1_7_5
+  tags:
+    - level1-server
+    - automated
+    - perms
+    - patch
+    - rule_1.7.5
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.file:
+    path: /etc/issue
+    owner: root
+    group: root
+    mode: 'go-wx'
+
+- name: "1.7.6 | PATCH | Ensure access to /etc/issue.net is configured"
+  when: amzn2027cis_rule_1_7_6
+  tags:
+    - level1-server
+    - automated
+    - perms
+    - patch
+    - rule_1.7.6
+    - NIST800-53R5_AC-3
+    - NIST800-53R5_MP-2
+  ansible.builtin.file:
+    path: /etc/issue.net
+    owner: root
+    group: root
+    mode: 'go-wx'
